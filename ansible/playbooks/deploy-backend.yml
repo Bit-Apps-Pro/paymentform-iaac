@@ -1,0 +1,75 @@
+---
+- name: Deploy Payment Form Backend
+  hosts: backend
+  become: yes
+  vars_files:
+    - ../vars/backend.yml
+  tasks:
+    - name: Ensure Docker is installed
+      package:
+        name: 
+          - docker
+          - docker-compose
+        state: present
+      notify: Start Docker
+
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Create application directory
+      file:
+        path: "{{ app_directory }}"
+        state: directory
+        owner: ec2-user
+        group: docker
+        mode: '0755'
+
+    - name: Copy application files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: ec2-user
+        mode: "{{ item.mode | default('0644') }}"
+      loop:
+        - { src: 'backend/', dest: '{{ app_directory }}/backend', mode: '0755' }
+        - { src: 'docker-compose.backend.yml', dest: '{{ app_directory }}/docker-compose.yml' }
+
+    - name: Copy environment file
+      template:
+        src: backend.env.j2
+        dest: "{{ app_directory }}/backend/.env"
+        owner: ec2-user
+        mode: '0644'
+
+    - name: Pull latest Docker images
+      docker_compose:
+        project_src: "{{ app_directory }}"
+        state: present
+        pull: yes
+      register: compose_result
+
+    - name: Start backend services
+      docker_compose:
+        project_src: "{{ app_directory }}"
+        state: present
+      register: compose_result
+
+    - name: Wait for backend to be ready
+      uri:
+        url: "http://localhost:{{ backend_port }}/health"
+        method: GET
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 30
+      delay: 10
+
+  handlers:
+    - name: Start Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes

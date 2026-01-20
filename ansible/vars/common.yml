@@ -1,0 +1,25 @@
+---
+# Common variables for all environments
+
+# Docker settings
+docker_version: "24.0"
+docker_compose_version: "2.20"
+
+# Application settings
+app_user: "ec2-user"
+app_group: "docker"
+app_base_directory: "/opt/paymentform"
+
+# Logging and monitoring
+cloudwatch_log_group: "/aws/paymentform"
+enable_detailed_logs: true
+log_retention_days: 14
+
+# Health check settings
+health_check_interval: 30
+health_check_timeout: 10
+health_check_retries: 3
+
+# Security
+enable_ssl: true
+enable_firewall: true

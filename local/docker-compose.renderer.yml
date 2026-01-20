@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  renderer:
+    build:
+      context: ../../../../renderer
+      dockerfile: ../../.docker/renderer/Dockerfile
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://api.local.paymentform.com:8000
+      NEXT_PUBLIC_DOMAIN: http://api.local.paymentform.com:8000
+      NEXT_PUBLIC_COOKIE_DOMAIN: .local.paymentform.com
+    volumes:
+      - ../../../../renderer:/app
+    depends_on:
+      - backend
+    networks:
+      - paymentform-local
+    ports:
+      - "3001:3000"
+
+  backend:
+    build:
+      context: ../../../../backend
+      dockerfile: ../../.docker/backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../../../../backend/.env
+    volumes:
+      - ../../../../backend:/var/www/html
+      - ../../../../backend/.env:/var/www/html/.env
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    environment:
+      - RUN_MIGRATIONS=true
+      - FORCE_MIGRATION=true
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - paymentform-local
+    ports:
+      - "8000:8000"
+
+  database:
+    image: postgres:17
+    restart: unless-stopped
+    env_file: ../../../../backend/.env
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USERNAME:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=${DB_DATABASE:-shopper_backend}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - paymentform-local
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-shopper_backend}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  paymentform-local:
+    driver: bridge

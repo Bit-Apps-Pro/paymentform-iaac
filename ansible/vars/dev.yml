@@ -1,0 +1,17 @@
+---
+# Development environment variables
+
+environment: "dev"
+domain_name: "dev.paymentform.local"
+enable_debug_logging: true
+log_retention_days: 7
+
+# Services
+services:
+  - backend
+  - client
+  - renderer
+
+# Resource limits for dev
+docker_memory_limit: "1g"
+docker_cpu_limit: "1"

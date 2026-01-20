@@ -1,0 +1,21 @@
+---
+# Staging environment variables
+
+environment: "staging"
+domain_name: "staging.paymentform.io"
+enable_debug_logging: false
+log_retention_days: 14
+
+# Services
+services:
+  - backend
+  - client
+  - renderer
+
+# Resource limits for staging
+docker_memory_limit: "2g"
+docker_cpu_limit: "2"
+
+# Monitoring
+enable_cloudwatch_monitoring: true
+enable_performance_insights: true

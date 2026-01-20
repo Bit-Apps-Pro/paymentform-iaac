@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: "paymentform-localstack"
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"            # LocalStack Edge Proxy
+      - "8080:8080"            # Web UI
+    environment:
+      - SERVICES=s3,ec2,lambda,cloudformation,apigateway,ses,route53,iam,sts,ecr,ecs,efs,elbv2,cloudwatch,logs,ssm,secretsmanager,rds,apigatewayv2,stepfunctions,es,opensearch,kinesis,firehose,events,sqs,sns,redshift,dynamodb,efs,glacier,emr,mq,iot,iotanalytics,iotevents,iotthingsgraph,pinpoint,translate,deeplens,comprehend,comprehendmedical,lex,rekognition,polly,sagemaker,states,cloudsearch,cognito-idp,cognito-identity,appsync,emr-containers,xray,resource-groups,cloudtrail,organizations,efs,backup,waf,guardduty,iot-data,iot-jobs-data,iot1click-devices,iot1click-projects,media-store,media-store-data,greengrass,datasync,glue,kinesisanalytics,kinesisanalyticsv2,athena,glue,greengrass,greengrassv2,timestream,forecast,forecastquery,lookoutequipment,iotsitewise,codeartifact,finspace,finspacedata,connect,connect-contact-lens,workmailmessageflow,voiceid,wisdom,account,ivs,braket,kendra,identitystore,imagebuilder,iotsecuretunneling,codeguru-reviewer,codeguru-profiler,signer,mgn,workspaces,worklink,codeartifact,compute-optimizer,elastic-inference,appmesh,managedblockchain,qldb,dlm,ebs,datapipeline,cur,iotwireless,iotdeviceadvisor,iotroborunner,iotfleetwise,verifiedpermissions,ivs-realtime,ivschat,emr-serverless,drs,migration-hub-refactor-spaces,connectcampaigns,m2,iotfleethub,iotanalytics,osis,arc-zonal-shift,rum,panorama,license-manager-linux-subscriptions,backup-gateway,internetmonitor,entityresolution,appfabric,medical-imaging,omics,codecatalyst,vpclattice,securitylake,tnb,pi,longhorn,wellarchitected,aps,controltower,inspector2,ivs-realtime,app-runner,bcm-data-exports,quicksight,neptune-graph,bedrock,bedrock-agent,bedrock-agent-runtime,bedrock-runtime,lambda,apigateway,apigatewayv2,apigatewaymanagementapi,apprunner,application-autoscaling,autoscaling,autoscaling-plans,backup,backup-gateway,cloudformation,cloudfront,cloudsearch,cloudtrail,cloudwatch,codebuild,codedeploy,codepipeline,cognito-identity,cognito-idp,config,datapipeline,dax,dynamodb,dynamodbstreams,ec2,ecr,ecs,efs,eks,elasticache,elasticbeanstalk,elasticsearch,elb,elbv2,emr,eventbridge,firehose,fms,gamelift,glacier,globalaccelerator,glue,greengrass,guardduty,iam,identitystore,imagebuilder,inspector,iot,iotanalytics,iotevents,iotsecuretunneling,iotsitewise,iotthingsgraph,kafka,kafkaconnect,kinesis,kinesisanalytics,kinesisanalyticsv2,kinesisvideo,lambda,lex-models,lex-runtime,license-manager,logs,managedblockchain,mediaconvert,mediapackage,mediastore,mediastore-data,mq,neptune,network-firewall,nimble,opensearch,opsworks,organizations,personalize,pinpoint,polly,pricing,quicksight,rds,redshift,rekognition,resource-groups,robomaker,route53,route53resolver,s3,s3control,sagemaker,sagemaker-a2i-runtime,savingsplans,scheduler,schemas,sdk-default-config,secretsmanager,securityhub,serverlessrepo,service-quotas,ses,sfn,shield,sms,sns,sqs,ssm,sso,sso-admin,sso-oidc,stepfunctions,storagegateway,sts,support,swf,textract,timestream-query,timestream-write,transcribe,transfer,waf,waf-regional,wafv2,wellarchitected,workdocs,worklink,workmail,workspaces,xray
+      - DEBUG=1
+      - DEFAULT_REGION=us-east-1
+      - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY:-}
+    volumes:
+      - "/tmp/localstack:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - paymentform-local
+
+  # Mock DNS server for local development
+  dns-mock:
+    image: coredns/coredns:latest
+    command: -conf /etc/coredns/Corefile
+    volumes:
+      - ./coredns.conf:/etc/coredns/Corefile
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    networks:
+      - paymentform-local
+
+networks:
+  paymentform-local:
+    driver: bridge
