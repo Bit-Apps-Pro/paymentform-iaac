@@ -35,8 +35,8 @@ resource "aws_internet_gateway" "main" {
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat_gateway" {
-  domain   = "vpc"
-  vpc_id   = aws_vpc.main.id
+  domain = "vpc"
+  vpc_id = aws_vpc.main.id
 
   depends_on = [
     aws_internet_gateway.main
@@ -52,8 +52,8 @@ resource "aws_eip" "nat_gateway" {
 
 # NAT Gateway
 resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat_gateway.id
-  subnet_id     = element(aws_subnet.public[*].id, 0)  # Use first public subnet
+  allocation_id     = aws_eip.nat_gateway.id
+  subnet_id         = element(aws_subnet.public[*].id, 0) # Use first public subnet
   connectivity_type = "public"
 
   tags = merge(
@@ -79,7 +79,7 @@ resource "aws_subnet" "public" {
   tags = merge(
     var.standard_tags,
     {
-      Name = "${var.environment}-public-subnet-${count.index + 1}"
+      Name                     = "${var.environment}-public-subnet-${count.index + 1}"
       "kubernetes.io/role/elb" = "1"
     }
   )
@@ -87,15 +87,15 @@ resource "aws_subnet" "public" {
 
 # Private Subnets (for compute)
 resource "aws_subnet" "private" {
-  count                   = length(var.availability_zones)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.private_subnet_cidrs[count.index]
-  availability_zone       = var.availability_zones[count.index]
+  count             = length(var.availability_zones)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
 
   tags = merge(
     var.standard_tags,
     {
-      Name = "${var.environment}-private-subnet-${count.index + 1}"
+      Name                              = "${var.environment}-private-subnet-${count.index + 1}"
       "kubernetes.io/role/internal-elb" = "1"
     }
   )

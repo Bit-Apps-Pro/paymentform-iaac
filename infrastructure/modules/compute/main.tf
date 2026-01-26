@@ -25,9 +25,9 @@ resource "aws_launch_template" "compute" {
     ecs_cluster_name = var.ecs_cluster_name
   }))
 
-  key_name               = var.key_pair_name
-  monitoring             = var.detailed_monitoring
-  ebs_optimized          = var.ebs_optimized
+  key_name      = var.key_pair_name
+  monitoring    = var.detailed_monitoring
+  ebs_optimized = var.ebs_optimized
 
   tag_specifications {
     resource_type = "instance"

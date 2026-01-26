@@ -10,19 +10,24 @@ terraform {
       version = "~> 5.0"
     }
     neon = {
-      source  = "kislaya/neon"
-      version = "~> 0.3"
+      source  = "kislerdm/neon"
+      version = "0.13.0"
     }
     turso = {
-      source  = "tursodatabase/turso"
-      version = "~> 0.1"
+      source  = "celest-dev/turso"
+      version = "0.2.3"
     }
   }
 }
 
 # Import infrastructure configurations
 module "infrastructure" {
-  source = "./infrastructure"
+  source           = "./infrastructure"
+  neon_api_key     = var.neon_api_key
+  turso_api_token  = var.turso_api_token
+  desired_capacity = var.desired_capacity
+  region           = var.region
+  environment      = var.environment
 }
 
 # Re-export all infrastructure outputs

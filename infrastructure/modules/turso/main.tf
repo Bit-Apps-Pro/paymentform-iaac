@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     turso = {
-      source  = "tursodatabase/turso"
-      version = "~> 0.1"
+      source  = "celest-dev/turso"
+      version = "0.2.3"
     }
   }
 }

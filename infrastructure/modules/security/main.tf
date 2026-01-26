@@ -115,7 +115,7 @@ resource "aws_security_group" "database" {
 # Inbound rules for database - allow from ECS
 resource "aws_security_group_rule" "db_ingress_from_ecs" {
   type                     = "ingress"
-  from_port                = 5432  # PostgreSQL
+  from_port                = 5432 # PostgreSQL
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.ecs.id
