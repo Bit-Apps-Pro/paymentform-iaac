@@ -65,7 +65,7 @@ resource "aws_ecs_task_definition" "client" {
   container_definitions = jsonencode([
     {
       name  = "client"
-      image = "${var.client_image}:${var.client_version}"
+      image = var.image_registry_type == "ecr" ? "${var.ecr_account_id}.dkr.ecr.${var.ecr_region}.amazonaws.com/paymentform-client:${var.client_version}" : "${var.client_image}:${var.client_version}"
 
       portMappings = [
         {
@@ -226,6 +226,14 @@ resource "aws_iam_role" "ecs_execution_role" {
 resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   role       = aws_iam_role.ecs_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# Attach ECR pull policy when ECR module is enabled
+resource "aws_iam_role_policy_attachment" "ecs_execution_ecr_pull" {
+  count      = var.enable_ecr && var.image_registry_type == "ecr" ? 1 : 0
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = module.ecr[0].ecr_pull_policy_arn
+  depends_on = [module.ecr]
 }
 
 resource "aws_iam_role" "client_task_role" {

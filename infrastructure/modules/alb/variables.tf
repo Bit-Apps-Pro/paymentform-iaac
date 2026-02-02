@@ -21,7 +21,7 @@ variable "alb_security_group_id" {
 variable "ssl_certificate_arn" {
   description = "ARN of the SSL certificate for HTTPS listener"
   type        = string
-  default     = ""  # Will be empty for dev environment
+  default     = "" # Will be empty for dev environment
 }
 
 variable "enable_deletion_protection" {

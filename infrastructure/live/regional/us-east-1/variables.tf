@@ -34,6 +34,24 @@ variable "backend_version" {
   default     = "latest"
 }
 
+variable "image_registry_type" {
+  description = "Type of image registry: local | ecr | ghcr"
+  type        = string
+  default     = "local"
+}
+
+variable "ecr_account_id" {
+  description = "AWS account ID for ECR image registry"
+  type        = string
+  default     = ""
+}
+
+variable "ecr_region" {
+  description = "AWS region for ECR"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "backend_cpu" {
   description = "CPU units for the backend task"
   type        = string

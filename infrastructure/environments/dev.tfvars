@@ -5,9 +5,9 @@ s3_bucket_name     = "paymentform-dev-storage"
 allow_origin_hosts = "*.dev.paymentform.local"
 
 # Subdomain configuration
-api_subdomain      = "api.dev.paymentform.local"      # Backend API
-app_subdomain      = "app.dev.paymentform.local"      # Client Dashboard
-renderer_subdomain = "*.dev.paymentform.local"        # Multi-tenant Renderer (wildcard)
+api_subdomain      = "api.dev.paymentform.local" # Backend API
+app_subdomain      = "app.dev.paymentform.local" # Client Dashboard
+renderer_subdomain = "*.dev.paymentform.local"   # Multi-tenant Renderer (wildcard)
 
 # Dev environment sizing
 backend_instance_type  = "t3.micro"

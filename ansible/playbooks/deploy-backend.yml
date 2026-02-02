@@ -44,6 +44,11 @@
         owner: ec2-user
         mode: '0644'
 
+    - name: Login to ECR if configured
+      shell: aws ecr get-login-password --region "{{ (aws_region | default('us-east-1')) }}" | docker login --username AWS --password-stdin "{{ ecr_account_id }}.dkr.ecr.{{ (aws_region | default('us-east-1')) }}.amazonaws.com"
+      when: environment != "dev" and (ecr_account_id is defined)
+      ignore_errors: yes
+
     - name: Pull latest Docker images
       docker_compose:
         project_src: "{{ app_directory }}"

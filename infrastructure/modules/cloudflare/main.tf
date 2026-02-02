@@ -47,36 +47,36 @@ resource "cloudflare_record" "renderer_wildcard" {
 resource "cloudflare_load_balancer_monitor" "api_monitor" {
   count = var.enable_load_balancer ? 1 : 0
 
-  type        = "https"
-  description = "API health check"
-  method      = "GET"
-  path        = var.health_check_path
-  port        = 443
-  timeout     = 5
-  interval    = 60
-  retries     = 2
-  expected_codes = "200"
+  type             = "https"
+  description      = "API health check"
+  method           = "GET"
+  path             = var.health_check_path
+  port             = 443
+  timeout          = 5
+  interval         = 60
+  retries          = 2
+  expected_codes   = "200"
   follow_redirects = false
-  allow_insecure = false
-  probe_zone  = var.cloudflare_zone_id
+  allow_insecure   = false
+  probe_zone       = var.cloudflare_zone_id
 }
 
 # Load Balancer Monitor for App health checks
 resource "cloudflare_load_balancer_monitor" "app_monitor" {
   count = var.enable_load_balancer ? 1 : 0
 
-  type        = "https"
-  description = "App health check"
-  method      = "GET"
-  path        = "/"
-  port        = 443
-  timeout     = 5
-  interval    = 60
-  retries     = 2
-  expected_codes = "200,301,302"
+  type             = "https"
+  description      = "App health check"
+  method           = "GET"
+  path             = "/"
+  port             = 443
+  timeout          = 5
+  interval         = 60
+  retries          = 2
+  expected_codes   = "200,301,302"
   follow_redirects = true
-  allow_insecure = false
-  probe_zone  = var.cloudflare_zone_id
+  allow_insecure   = false
+  probe_zone       = var.cloudflare_zone_id
 }
 
 # Origin Pool for API (backend instances)
@@ -127,14 +127,14 @@ resource "cloudflare_load_balancer_pool" "app_pool" {
 resource "cloudflare_load_balancer" "api_lb" {
   count = var.enable_load_balancer ? 1 : 0
 
-  zone_id          = var.cloudflare_zone_id
-  name             = "${var.api_subdomain}"
-  default_pool_ids = [cloudflare_load_balancer_pool.api_pool[0].id]
-  fallback_pool_id = cloudflare_load_balancer_pool.api_pool[0].id
-  description      = "Load balancer for API - ${var.environment}"
-  proxied          = true
-  steering_policy  = "dynamic_latency"
-  session_affinity = "cookie"
+  zone_id              = var.cloudflare_zone_id
+  name                 = var.api_subdomain
+  default_pool_ids     = [cloudflare_load_balancer_pool.api_pool[0].id]
+  fallback_pool_id     = cloudflare_load_balancer_pool.api_pool[0].id
+  description          = "Load balancer for API - ${var.environment}"
+  proxied              = true
+  steering_policy      = "dynamic_latency"
+  session_affinity     = "cookie"
   session_affinity_ttl = 3600
 
   session_affinity_attributes {
@@ -146,14 +146,14 @@ resource "cloudflare_load_balancer" "api_lb" {
 resource "cloudflare_load_balancer" "app_lb" {
   count = var.enable_load_balancer ? 1 : 0
 
-  zone_id          = var.cloudflare_zone_id
-  name             = "${var.app_subdomain}"
-  default_pool_ids = [cloudflare_load_balancer_pool.app_pool[0].id]
-  fallback_pool_id = cloudflare_load_balancer_pool.app_pool[0].id
-  description      = "Load balancer for App - ${var.environment}"
-  proxied          = true
-  steering_policy  = "dynamic_latency"
-  session_affinity = "cookie"
+  zone_id              = var.cloudflare_zone_id
+  name                 = var.app_subdomain
+  default_pool_ids     = [cloudflare_load_balancer_pool.app_pool[0].id]
+  fallback_pool_id     = cloudflare_load_balancer_pool.app_pool[0].id
+  description          = "Load balancer for App - ${var.environment}"
+  proxied              = true
+  steering_policy      = "dynamic_latency"
+  session_affinity     = "cookie"
   session_affinity_ttl = 3600
 
   session_affinity_attributes {
@@ -172,21 +172,21 @@ resource "cloudflare_zone_settings_override" "paymentform_settings" {
     automatic_https_rewrites = "on"
     min_tls_version          = "1.2"
     tls_1_3                  = "on"
-    
+
     # Security Settings
-    security_level           = "medium"
-    browser_check            = "on"
-    challenge_ttl            = 1800
-    
+    security_level = "medium"
+    browser_check  = "on"
+    challenge_ttl  = 1800
+
     # Performance Settings
-    brotli                   = "on"
-    early_hints              = "on"
-    http2                    = "on"
-    http3                    = "on"
-    zero_rtt                 = "on"
-    
+    brotli      = "on"
+    early_hints = "on"
+    http2       = "on"
+    http3       = "on"
+    zero_rtt    = "on"
+
     # Caching Settings (only for proxied records)
-    cache_level              = "aggressive"
+    cache_level = "aggressive"
   }
 }
 
@@ -205,9 +205,9 @@ resource "cloudflare_ruleset" "waf_managed" {
     action_parameters {
       id = "efb7b8c949ac4650a09736fc376e9aee" # OWASP Core Ruleset
     }
-    expression = "(http.host eq \"${var.api_subdomain}\" or http.host eq \"${var.app_subdomain}\")"
+    expression  = "(http.host eq \"${var.api_subdomain}\" or http.host eq \"${var.app_subdomain}\")"
     description = "Execute OWASP Core Ruleset"
-    enabled = true
+    enabled     = true
   }
 }
 
@@ -225,32 +225,32 @@ resource "cloudflare_ruleset" "rate_limiting" {
     action = "block"
     action_parameters {
       response {
-        status_code = 429
-        content     = "Too many requests"
+        status_code  = 429
+        content      = "Too many requests"
         content_type = "text/plain"
       }
     }
     ratelimit {
-      characteristics = ["ip.src"]
-      period          = 60
+      characteristics     = ["ip.src"]
+      period              = 60
       requests_per_period = var.rate_limit_requests
       mitigation_timeout  = 600
     }
-    expression = "(http.host eq \"${var.api_subdomain}\")"
+    expression  = "(http.host eq \"${var.api_subdomain}\")"
     description = "Rate limit API requests"
-    enabled = true
+    enabled     = true
   }
 }
 
 # Page Rule for caching static assets
 resource "cloudflare_page_rule" "cache_static_assets" {
-  zone_id = var.cloudflare_zone_id
-  target  = "${var.app_subdomain}/*"
+  zone_id  = var.cloudflare_zone_id
+  target   = "${var.app_subdomain}/*"
   priority = 1
 
   actions {
-    cache_level         = "cache_everything"
-    edge_cache_ttl      = 7200
-    browser_cache_ttl   = 3600
+    cache_level       = "cache_everything"
+    edge_cache_ttl    = 7200
+    browser_cache_ttl = 3600
   }
 }

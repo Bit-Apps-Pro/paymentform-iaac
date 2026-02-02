@@ -16,7 +16,7 @@ variable "instance_type" {
 variable "ami_id" {
   description = "AMI ID for the instances"
   type        = string
-  default     = "ami-0abcdef1234567890"  # Default placeholder - should be set per region
+  default     = "ami-0abcdef1234567890" # Default placeholder - should be set per region
 }
 
 variable "key_pair_name" {
@@ -92,4 +92,21 @@ variable "ecs_cluster_name" {
 variable "ecs_security_group_id" {
   description = "ID of the ECS security group"
   type        = string
+}
+variable "image_registry_type" {
+  description = "Type of image registry: local | ecr | ghcr"
+  type        = string
+  default     = "local"
+}
+
+variable "ecr_account_id" {
+  description = "AWS account ID for ECR image registry"
+  type        = string
+  default     = ""
+}
+
+variable "ecr_region" {
+  description = "AWS region for ECR"
+  type        = string
+  default     = "us-east-1"
 }

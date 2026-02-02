@@ -365,7 +365,7 @@ variable "instance_type" {
 variable "ami_id" {
   description = "AMI ID for the instances"
   type        = string
-  default     = "ami-0abcdef1234567890"  # Default placeholder - should be set per region
+  default     = "ami-0abcdef1234567890" # Default placeholder - should be set per region
   nullable    = false
 }
 
@@ -449,11 +449,11 @@ locals {
   standard_tags = merge(
     var.common_tags,
     {
-      Project     = var.project_name
-      ManagedBy   = var.managed_by
-      CreatedAt   = timestamp()
-      CostCenter  = var.cost_center
-      Owner       = var.owner
+      Project    = var.project_name
+      ManagedBy  = var.managed_by
+      CreatedAt  = timestamp()
+      CostCenter = var.cost_center
+      Owner      = var.owner
     }
   )
 

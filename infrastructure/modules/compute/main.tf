@@ -22,7 +22,10 @@ resource "aws_launch_template" "compute" {
   }
 
   user_data = base64encode(templatefile("${path.module}/userdata.sh", {
-    ecs_cluster_name = var.ecs_cluster_name
+    ecs_cluster_name    = var.ecs_cluster_name
+    image_registry_type = var.image_registry_type
+    ecr_account_id      = var.ecr_account_id
+    ecr_region          = var.ecr_region
   }))
 
   key_name      = var.key_pair_name
