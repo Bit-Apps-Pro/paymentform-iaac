@@ -1,6 +1,96 @@
-# Example values for required variables
-neon_api_key     = "REPLACE_WITH_YOUR_NEON_API_KEY"
-turso_api_token  = "REPLACE_WITH_YOUR_TURSO_API_TOKEN"
-desired_capacity = 2
-region           = "us-east-1"
-environment      = "dev"
+# ============================================================================
+# Payment Form Infrastructure - Terraform Variables Example
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in your actual values
+# Or use environment-specific files in infrastructure/environments/
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Core Configuration
+# ----------------------------------------------------------------------------
+project_name = "paymentform"
+environment  = "dev"  # Options: dev, sandbox, prod
+region       = "us-east-1"
+
+# ----------------------------------------------------------------------------
+# Domain Configuration
+# ----------------------------------------------------------------------------
+domain_name        = "dev.paymentform.local"      # Base domain for environment
+api_subdomain      = "api.dev.paymentform.local"  # Backend API endpoint
+app_subdomain      = "app.dev.paymentform.local"  # Client dashboard
+renderer_subdomain = "*.dev.paymentform.local"    # Multi-tenant renderer (wildcard)
+
+# ----------------------------------------------------------------------------
+# Database Credentials (Required - Sensitive!)
+# ----------------------------------------------------------------------------
+# Neon (Serverless PostgreSQL) - Main application database
+neon_api_key = "REPLACE_WITH_YOUR_NEON_API_KEY"  # Get from: https://console.neon.tech/app/settings/api-keys
+
+# Turso (Edge SQLite) - Tenant databases
+turso_api_token = "REPLACE_WITH_YOUR_TURSO_API_TOKEN"  # Get from: turso auth token
+
+# Optional: AWS Secrets Manager ARNs (if storing credentials there)
+# neon_api_key_secret_arn  = "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:neon-api-key"
+# turso_token_secret_arn   = "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:turso-api-token"
+
+# ----------------------------------------------------------------------------
+# Image Registry Configuration (Local Build & Deploy)
+# ----------------------------------------------------------------------------
+# For dev: use local docker-compose (no registry, $0 cost)
+# For sandbox/prod: use AWS ECR ($1-5/month with lifecycle policies)
+
+image_registry_type = "local"  # Options: local, ecr, ghcr
+enable_ecr          = false    # Set to true for sandbox/prod
+
+# ECR Configuration (only needed if enable_ecr = true)
+# ecr_account_id = "123456789012"  # AWS Account ID (run: aws sts get-caller-identity --query Account --output text)
+# ecr_region     = "us-east-1"
+# ecr_repositories = ["backend", "client", "renderer", "admin"]
+
+# ----------------------------------------------------------------------------
+# Cloudflare Configuration (Optional)
+# ----------------------------------------------------------------------------
+# cloudflare_api_token = "YOUR_CLOUDFLARE_API_TOKEN"  # For DNS/CDN management
+# cloudflare_zone_id   = "YOUR_ZONE_ID"
+
+# ----------------------------------------------------------------------------
+# Monitoring & Backup
+# ----------------------------------------------------------------------------
+enable_monitoring               = true
+enable_backup                   = true
+backup_retention_days           = 7      # Dev: 7 days, Sandbox: 14, Prod: 30+
+enable_encryption               = true
+enable_cross_region_replication = false  # Only enable for sandbox/prod
+
+# ----------------------------------------------------------------------------
+# Resource Tagging
+# ----------------------------------------------------------------------------
+common_tags = {
+  Environment = "development"
+  Terraform   = "true"
+  ManagedBy   = "opentofu"
+  CostCenter  = "development"
+  AutoDelete  = "true"  # For automated cleanup in dev
+}
+
+cost_center = "development"
+owner       = "devops-team"
+managed_by  = "opentofu"
+
+# ----------------------------------------------------------------------------
+# Cost Optimization Notes
+# ----------------------------------------------------------------------------
+# Dev Environment:    $0 (local docker-compose, no registry)
+# Sandbox Environment: ~$1-3/month (ECR with lifecycle policies)
+# Prod Environment:    ~$2-5/month (ECR with lifecycle policies)
+# 
+# Total ECR Cost: ~$3-8/month (vs $5-20 without optimization)
+#
+# Quick Start:
+#   1. Copy this file: cp terraform.tfvars.example terraform.tfvars
+#   2. Set neon_api_key and turso_api_token
+#   3. For dev:     make dev-local
+#   4. For sandbox: make local-deploy ENV=sandbox
+#
+# Documentation: docs/LOCAL-BUILD-DEPLOY.md
+# ============================================================================
