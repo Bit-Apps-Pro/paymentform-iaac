@@ -231,7 +231,7 @@ The numbers above are misleading. Here's the reality:
 
 **Primary: GitHub Container Registry**
 - All application images
-- Development and staging
+- Development and sandbox
 - Production deployments
 
 **Future: Consider ECR if:**

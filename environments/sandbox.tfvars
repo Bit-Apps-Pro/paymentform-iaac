@@ -1,7 +1,7 @@
-environment        = "staging"
+environment        = "sandbox"
 region             = "us-east-1"
-domain_name        = "staging.paymentform.io"
-allow_origin_hosts = "*.staging.paymentform.io"
+domain_name        = "sandbox.paymentform.io"
+allow_origin_hosts = "*.sandbox.paymentform.io"
 
 # Neon database configuration (serverless PostgreSQL)
 # Neon API key provided via TF_VAR_neon_api_key environment variable

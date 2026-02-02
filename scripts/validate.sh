@@ -177,7 +177,7 @@ validate_environments() {
     log_info "Checking environment configuration files..."
     ((TOTAL_CHECKS++))
 
-    local required_envs=("dev" "staging" "prod")
+    local required_envs=("dev" "sandbox" "prod")
     
     for env in "${required_envs[@]}"; do
         local env_file="$PROJECT_ROOT/environments/${env}.tfvars"

@@ -386,6 +386,24 @@ For comprehensive guides, see:
 
 ---
 
+## 🏗️ Local Build & Deploy
+
+A cost-optimized local build and deploy workflow enables fast iteration in dev ($0) and low-cost sandbox/prod image hosting using AWS ECR (~$1–5/month). It supports three deployment options:
+
+- Dev (local) — build and run with Docker & docker-compose (no cloud cost)
+- Sandbox (ECR) — push images to AWS ECR for testing (~$1–3/month)
+- Prod (ECR) — production images in ECR with lifecycle policies (~$2–5/month)
+
+Quick reference table:
+
+| Environment | Registry | Cost | Command |
+|-------------|----------|------:|---------|
+| Dev         | Local    | $0    | `make dev-local` / `make dev-up` |
+| Sandbox     | ECR      | $1–3  | `make build-local ENV=sandbox` / `make push-to-ecr` / `make local-deploy ENV=sandbox` |
+| Prod        | ECR      | $2–5  | `make build-local ENV=prod` / `make push-to-ecr` / `make local-deploy ENV=prod` |
+
+Benefits: faster iteration, cost savings, flexible workflows. See the full guide: `docs/LOCAL-BUILD-DEPLOY.md`
+
 ## �️ Database: Neon (Serverless PostgreSQL)
 
 This infrastructure uses **Neon** instead of RDS for significant cost savings and zero management.
@@ -658,3 +676,5 @@ tofu help                   # Show OpenTofu help
 **Start with:** `make help` to see all available commands
 
 **Next Steps:** Choose your environment (dev/sandbox/prod) and follow the workflow above
+
+NOTE: 'staging' environment has been renamed to 'sandbox' to standardize environments (dev, sandbox, prod).

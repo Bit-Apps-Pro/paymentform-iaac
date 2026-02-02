@@ -1,8 +1,8 @@
 ---
 # Staging environment variables
 
-environment: "staging"
-domain_name: "staging.paymentform.io"
+environment: "sandbox"
+domain_name: "sandbox.paymentform.io"
 enable_debug_logging: false
 log_retention_days: 14
 
@@ -12,7 +12,7 @@ services:
   - client
   - renderer
 
-# Resource limits for staging
+# Resource limits for sandbox
 docker_memory_limit: "2g"
 docker_cpu_limit: "2"
 

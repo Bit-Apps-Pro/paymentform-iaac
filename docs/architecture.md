@@ -28,7 +28,7 @@ paymentform-iac/
 │   │
 │   ├── environments/           # Environment-specific configs
 │   │   ├── dev/               # Development environment
-│   │   ├── staging/           # Staging environment
+│   │   ├── sandbox/           # Staging environment
 │   │   └── prod/              # Production environment
 │   │
 │   └── live/                  # Deployed infrastructure configs

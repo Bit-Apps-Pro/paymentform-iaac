@@ -21,7 +21,7 @@ make cost-estimate ENV=prod
 make cost-estimate ENV=dev
 
 # STAGING environment
-make cost-estimate ENV=staging
+make cost-estimate ENV=sandbox
 
 # PRODUCTION environment
 make cost-estimate ENV=prod
@@ -38,7 +38,7 @@ make cost-estimate-all
 **Output:** Three separate cost breakdowns:
 
 - dev: estimated monthly cost
-- staging: estimated monthly cost
+- sandbox: estimated monthly cost
 - prod: estimated monthly cost
 
 ---
@@ -92,7 +92,7 @@ jq '.totalMonthlyCost' cost-estimate-prod.json
 
 # All environments
 echo "DEV:" && jq '.totalMonthlyCost' cost-estimate-dev.json
-echo "STAGING:" && jq '.totalMonthlyCost' cost-estimate-staging.json
+echo "STAGING:" && jq '.totalMonthlyCost' cost-estimate-sandbox.json
 echo "PROD:" && jq '.totalMonthlyCost' cost-estimate-prod.json
 ```
 
@@ -139,7 +139,7 @@ jq '.resources[] | {name: .name, cost: .costPerMonth}' cost-estimate-prod.json |
 ```bash
 # Get costs for all environments
 DEV=$(jq '.totalMonthlyCost' cost-estimate-dev.json)
-STAGING=$(jq '.totalMonthlyCost' cost-estimate-staging.json)
+STAGING=$(jq '.totalMonthlyCost' cost-estimate-sandbox.json)
 PROD=$(jq '.totalMonthlyCost' cost-estimate-prod.json)
 
 echo "DEV: \$$DEV/month"
@@ -479,7 +479,7 @@ echo "─────────────────────"
 echo -n "DEV: $"
 jq '.totalMonthlyCost' cost-estimate-dev.json
 echo -n "STAGING: $"
-jq '.totalMonthlyCost' cost-estimate-staging.json
+jq '.totalMonthlyCost' cost-estimate-sandbox.json
 echo -n "PROD: $"
 jq '.totalMonthlyCost' cost-estimate-prod.json
 echo ""
@@ -490,7 +490,7 @@ echo "──────────────────"
 echo -n "DEV: $"
 jq '.totalMonthlyCost * 12' cost-estimate-dev.json
 echo -n "STAGING: $"
-jq '.totalMonthlyCost * 12' cost-estimate-staging.json
+jq '.totalMonthlyCost * 12' cost-estimate-sandbox.json
 echo -n "PROD: $"
 jq '.totalMonthlyCost * 12' cost-estimate-prod.json
 echo ""
@@ -518,7 +518,7 @@ echo "4. Deploy when approved"
 ```bash
 # Estimate specific environment
 make cost-estimate ENV=dev
-make cost-estimate ENV=staging
+make cost-estimate ENV=sandbox
 make cost-estimate ENV=prod
 
 # Estimate all at once

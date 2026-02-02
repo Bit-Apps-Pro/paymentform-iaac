@@ -5,9 +5,9 @@ s3_bucket_name     = "paymentform-sandbox-storage"
 allow_origin_hosts = "*.sandbox.paymentform.io"
 
 # Subdomain configuration
-api_subdomain      = "staging.api.paymentform.io" # Backend API
-app_subdomain      = "staging.app.paymentform.io" # Client Dashboard
-renderer_subdomain = "staging.*.paymentform.io"   # Multi-tenant Renderer (wildcard)
+api_subdomain      = "sandbox.api.paymentform.io" # Backend API
+app_subdomain      = "sandbox.app.paymentform.io" # Client Dashboard
+renderer_subdomain = "sandbox.*.paymentform.io"   # Multi-tenant Renderer (wildcard)
 
 # Cloudflare configuration (set via environment variables or secrets)
 # cloudflare_zone_id and cloudflare_api_token should be set externally

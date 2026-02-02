@@ -177,7 +177,7 @@ The `local/localstack.yml` configuration enables:
 
 ### What We'll Estimate
 
-**Monthly costs for dev/staging/prod environments:**
+**Monthly costs for dev/sandbox/prod environments:**
 
 - Compute (EC2, ECS)
 - Storage (S3, RDS)
@@ -479,7 +479,7 @@ echo -e "${GREEN}✓ Tfsec scan complete (see security-tfsec-report.json)${NC}\n
 
 # 5. Cost Estimation
 echo -e "${YELLOW}[5/6] Estimating infrastructure costs...${NC}"
-for ENV in dev staging prod; do
+for ENV in dev sandbox prod; do
   if [ -f "infrastructure/environments/$ENV/terraform.tfvars" ]; then
     infracost breakdown \
       --path infrastructure/environments/$ENV/ \
@@ -529,7 +529,7 @@ echo "📊 Reports Generated:"
 echo "  - security-checkov-report.json"
 echo "  - security-tfsec-report.json"
 echo "  - cost-estimate-dev.json"
-echo "  - cost-estimate-staging.json"
+echo "  - cost-estimate-sandbox.json"
 echo "  - cost-estimate-prod.json"
 ```
 
@@ -566,7 +566,7 @@ localstack-test: localstack-start
 
 # Cost estimation targets
 cost-estimate-all:
-	@for env in dev staging prod; do \
+	@for env in dev sandbox prod; do \
 		echo "Estimating costs for $$env..."; \
 		infracost breakdown --path infrastructure/environments/$$env/ --format json > cost-estimate-$$env.json; \
 		echo "  ✓ cost-estimate-$$env.json"; \

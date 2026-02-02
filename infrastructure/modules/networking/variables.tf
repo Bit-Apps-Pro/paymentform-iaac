@@ -6,7 +6,7 @@ variable "vpc_cidr" {
 }
 
 variable "environment" {
-  description = "Environment name (dev, staging, prod)"
+  description = "Environment name (dev, sandbox, prod)"
   type        = string
 }
 

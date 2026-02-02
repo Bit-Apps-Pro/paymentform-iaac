@@ -170,4 +170,4 @@ After successfully testing your infrastructure with LocalStack:
 1. Make any necessary adjustments to your Terraform configurations
 2. Test your application code against the local infrastructure
 3. Run integration tests to ensure everything works together
-4. Deploy to your staging or production AWS environment with confidence
+4. Deploy to your sandbox or production AWS environment with confidence

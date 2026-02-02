@@ -21,7 +21,7 @@ git push origin feature/rds-improvements
 infrastructure/
 ├── environments/
 │   ├── dev/terraform.tfvars
-│   ├── staging/terraform.tfvars
+│   ├── sandbox/terraform.tfvars
 │   └── prod/terraform.tfvars
 ```
 
@@ -328,7 +328,7 @@ variable "instance_type" {
 **Staging Environment**
 
 ```hcl
-# Good for staging: production-like but smaller
+# Good for sandbox: production-like but smaller
 variable "instance_type" {
   default = "t3.small"  # ~$20/month
 }
@@ -378,7 +378,7 @@ resource "aws_instance" "batch_processor" {
 ### 4. Schedule Resources
 
 ```hcl
-# Stop dev/staging at night and weekends
+# Stop dev/sandbox at night and weekends
 # Use CloudWatch + Lambda to schedule start/stop
 
 # Example savings:
@@ -554,7 +554,7 @@ instance_type = "m5.large"  # Handles load, minimal scaling
 ❌ **Don't leave resources running when not needed**
 
 ```bash
-# Dev/staging resources should stop at 6 PM
+# Dev/sandbox resources should stop at 6 PM
 # Production should be optimized for RI/savings plans
 ```
 

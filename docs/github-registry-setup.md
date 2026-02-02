@@ -56,7 +56,7 @@ The workflows are already created in `.github/workflows/`:
 - `build-renderer.yml`
 
 These workflows automatically:
-1. Build Docker images on push to main/develop/staging
+1. Build Docker images on push to main/develop/sandbox
 2. Tag images with branch name, commit SHA, and semantic version
 3. Push to GHCR using `GITHUB_TOKEN` (automatic)
 
@@ -181,7 +181,7 @@ Our workflows create multiple tags for each build:
 | Tag | Example | Purpose |
 |-----|---------|---------|
 | `latest` | `latest` | Always points to main branch |
-| `branch` | `develop`, `staging` | Latest build for branch |
+| `branch` | `develop`, `sandbox` | Latest build for branch |
 | `sha` | `main-a1b2c3d` | Specific commit |
 | `version` | `v1.2.3` | Semantic version (if tagged) |
 
@@ -192,7 +192,7 @@ Pull specific versions:
 docker pull ghcr.io/org/paymentform-backend:latest
 
 # Specific branch
-docker pull ghcr.io/org/paymentform-backend:staging
+docker pull ghcr.io/org/paymentform-backend:sandbox
 
 # Specific commit
 docker pull ghcr.io/org/paymentform-backend:main-a1b2c3d

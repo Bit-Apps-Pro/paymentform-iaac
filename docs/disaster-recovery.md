@@ -203,7 +203,7 @@ aws cloudtrail lookup-events \
 
 ```bash
 # Run complete DR test
-./scripts/disaster-recovery-test.sh --environment staging --scenario full-failover
+./scripts/disaster-recovery-test.sh --environment sandbox --scenario full-failover
 
 # Expected output:
 # ✓ Backup validation passed

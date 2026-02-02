@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - develop
-      - staging
+      - sandbox
       - feat/**
   pull_request:
     branches:

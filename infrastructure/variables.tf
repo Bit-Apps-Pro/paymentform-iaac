@@ -14,13 +14,13 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Deployment environment (dev, sandbox, staging, prod)"
+  description = "Deployment environment (dev, sandbox, sandbox, prod)"
   type        = string
   nullable    = false
 
   validation {
-    condition     = contains(["dev", "sandbox", "staging", "prod"], var.environment)
-    error_message = "Environment must be one of: dev, sandbox, staging, prod."
+    condition     = contains(["dev", "sandbox", "sandbox", "prod"], var.environment)
+    error_message = "Environment must be one of: dev, sandbox, sandbox, prod."
   }
 }
 
@@ -462,6 +462,6 @@ locals {
 
   # Environment-specific settings
   is_prod    = var.environment == "prod"
-  is_staging = var.environment == "staging"
+  is_sandbox = var.environment == "sandbox"
   is_dev     = var.environment == "dev"
 }

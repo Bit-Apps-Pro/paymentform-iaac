@@ -140,7 +140,7 @@ push:
   branches:
     - main
     - develop
-    - staging
+    - sandbox
     - feat/**
 ```
 
@@ -416,7 +416,7 @@ Ensure workflow has `contents: write` permission or `contents: read` at minimum 
 
 1. **Semantic Versioning**: Use `v1.2.3` format for releases
 2. **Changelog**: Include release notes with every release
-3. **Testing**: Test in staging before creating production release
+3. **Testing**: Test in sandbox before creating production release
 4. **Rollback**: Keep previous version tags for easy rollback
 5. **Automation**: Consider using release-drafter or semantic-release
 

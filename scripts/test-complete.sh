@@ -155,7 +155,7 @@ main() {
     print_section "Phase 4: Cost Estimation"
     
     if command -v infracost &> /dev/null; then
-        for ENV in dev staging prod; do
+        for ENV in dev sandbox prod; do
             print_step "Estimating costs for $ENV environment"
             if [ -d "infrastructure/environments/$ENV" ]; then
                 if infracost breakdown --path infrastructure/environments/$ENV/ --format json > cost-estimate-$ENV.json 2>&1; then
@@ -278,7 +278,7 @@ main() {
     [ -f security-tfsec-report.json ] && echo "    ✓ security-tfsec-report.json"
     echo "  💰 Cost Estimates:"
     [ -f cost-estimate-dev.json ] && echo "    ✓ cost-estimate-dev.json"
-    [ -f cost-estimate-staging.json ] && echo "    ✓ cost-estimate-staging.json"
+    [ -f cost-estimate-sandbox.json ] && echo "    ✓ cost-estimate-sandbox.json"
     [ -f cost-estimate-prod.json ] && echo "    ✓ cost-estimate-prod.json"
     
     echo ""

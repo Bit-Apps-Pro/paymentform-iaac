@@ -5,7 +5,7 @@
 #
 # Examples:
 #   ./tofu-wrapper.sh init dev
-#   ./tofu-wrapper.sh plan staging
+#   ./tofu-wrapper.sh plan sandbox
 #   ./tofu-wrapper.sh apply prod
 #   ./tofu-wrapper.sh validate
 #   ./tofu-wrapper.sh destroy dev
@@ -47,12 +47,12 @@ print_error() {
 
 validate_env() {
     case "$1" in
-        dev|staging|prod)
+        dev|sandbox|prod)
             return 0
             ;;
         *)
             print_error "Invalid environment: $1"
-            echo "Valid environments: dev, staging, prod"
+            echo "Valid environments: dev, sandbox, prod"
             exit 1
             ;;
     esac
@@ -194,12 +194,12 @@ Commands:
 
 Environments:
   dev               Development (default)
-  staging           Staging/Pre-production
+  sandbox           Staging/Pre-production
   prod              Production
 
 Examples:
   $0 init dev
-  $0 plan staging
+  $0 plan sandbox
   $0 apply prod
   $0 validate
   $0 fmt
@@ -207,7 +207,7 @@ Examples:
   $0 destroy prod
 
 Environment variable:
-  Set ENV=staging to use staging by default
+  Set ENV=sandbox to use sandbox by default
 
 EOF
             ;;

@@ -50,7 +50,7 @@ usage() {
 Usage: $0 [OPTIONS]
 
 Options:
-    -e, --environment ENV       Environment to rollback (dev|staging|prod)
+    -e, --environment ENV       Environment to rollback (dev|sandbox|prod)
     -t, --target TARGET         Target to rollback (terraform|ansible|all)
     -v, --version VERSION       Version/commit to rollback to
     -c, --create-backup         Create backup before rollback
@@ -61,7 +61,7 @@ Examples:
     $0 -e prod -t terraform -v abc123
 
     # Rollback applications with backup
-    $0 -e staging -t ansible --create-backup
+    $0 -e sandbox -t ansible --create-backup
 
     # Full rollback with backup
     $0 -e prod -t all --create-backup

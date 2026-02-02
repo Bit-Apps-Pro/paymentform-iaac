@@ -18,13 +18,13 @@ variable "resource_prefix" {
 }
 
 variable "environment" {
-  description = "Environment name (dev, staging, prod)"
+  description = "Environment name (dev, sandbox, prod)"
   type        = string
   nullable    = false
 
   validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod."
+    condition     = contains(["dev", "sandbox", "prod"], var.environment)
+    error_message = "Environment must be dev, sandbox, or prod."
   }
 }
 

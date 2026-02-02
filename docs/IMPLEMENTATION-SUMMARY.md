@@ -250,7 +250,7 @@ open https://traefik.sandbox.paymentform.io
 
 ### GHCR Integration
 
-- **Automated Builds**: GitHub Actions on push to main/develop/staging
+- **Automated Builds**: GitHub Actions on push to main/develop/sandbox
 - **Multi-platform**: linux/amd64 support
 - **Tagging Strategy**: branch, commit SHA, semantic version, latest
 - **Caching**: GitHub Actions cache for faster builds
