@@ -4,7 +4,8 @@
 terraform {
   required_providers {
     cloudflare = {
-      source = "cloudflare/cloudflare"
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.16.0"
     }
   }
 }
@@ -77,7 +78,7 @@ resource "cloudflare_ruleset" "rate_limiting" {
   name        = "${var.environment}-rate-limiting"
   description = "Rate limiting for API endpoints"
   kind        = "zone"
-  phase       = "http_ratelimit"
+  phase       = "http_request_late_transform" # Updated phase for newer provider versions
 
   rules = [
     {
@@ -87,7 +88,7 @@ resource "cloudflare_ruleset" "rate_limiting" {
       ratelimit = {
         characteristics    = ["ip.src"]
         period             = 60
-        requests_limit     = var.rate_limit_requests
+        requests_per_period = var.rate_limit_requests  # Updated attribute name
         mitigation_timeout = 600
       }
     }

@@ -9,6 +9,7 @@ variable "cloudflare_account_id" {
   description = "Cloudflare Account ID"
   type        = string
 }
+
 variable "cloudflare_api_token" {
   description = "Cloudflare API token for DNS and Load Balancer management"
   type        = string
