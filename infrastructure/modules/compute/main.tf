@@ -7,9 +7,14 @@ terraform {
   }
 }
 
+locals {
+  # Use instance_prefix when set (multi-instance deployments), else fall back to environment
+  prefix = var.instance_prefix != "" ? var.instance_prefix : var.environment
+}
+
 # EC2 Launch Template
 resource "aws_launch_template" "compute" {
-  name_prefix   = "${var.environment}-compute-template"
+  name_prefix   = "${local.prefix}-compute-template"
   image_id      = var.ami_id
   instance_type = var.instance_type
 
@@ -26,6 +31,8 @@ resource "aws_launch_template" "compute" {
     image_registry_type = var.image_registry_type
     ecr_account_id      = var.ecr_account_id
     ecr_region          = var.ecr_region
+    environment         = var.environment
+    region              = var.region
   }))
 
   key_name      = var.key_pair_name
@@ -40,7 +47,7 @@ resource "aws_launch_template" "compute" {
     tags = merge(
       var.standard_tags,
       {
-        Name = "${var.environment}-compute-instance"
+        Name = "${local.prefix}-compute-instance"
       }
     )
   }
@@ -50,7 +57,7 @@ resource "aws_launch_template" "compute" {
     tags = merge(
       var.standard_tags,
       {
-        Name = "${var.environment}-compute-volume"
+        Name = "${local.prefix}-compute-volume"
       }
     )
   }
@@ -75,7 +82,7 @@ resource "aws_launch_template" "compute" {
 
 # Auto Scaling Group
 resource "aws_autoscaling_group" "compute" {
-  name_prefix = "${var.environment}-compute-asg-"
+  name_prefix = "${local.prefix}-compute-asg-"
 
   vpc_zone_identifier = var.subnet_ids
 
@@ -93,7 +100,7 @@ resource "aws_autoscaling_group" "compute" {
 
   tag {
     key                 = "Name"
-    value               = "${var.environment}-compute-instance"
+    value               = "${local.prefix}-compute-instance"
     propagate_at_launch = true
   }
 
@@ -109,13 +116,13 @@ resource "aws_autoscaling_group" "compute" {
 
 # IAM Instance Profile for ECS
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name = "${var.environment}-ecs-instance-profile"
+  name = "${local.prefix}-ecs-instance-profile"
   role = aws_iam_role.ecs_instance_role.name
 }
 
 # IAM Role for ECS Instances
 resource "aws_iam_role" "ecs_instance_role" {
-  name = "${var.environment}-ecs-instance-role"
+  name = "${local.prefix}-ecs-instance-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -133,7 +140,7 @@ resource "aws_iam_role" "ecs_instance_role" {
   tags = merge(
     var.standard_tags,
     {
-      Name = "${var.environment}-ecs-instance-role"
+      Name = "${local.prefix}-ecs-instance-role"
     }
   )
 }
@@ -152,7 +159,7 @@ resource "aws_iam_role_policy_attachment" "ssm_instance_policy" {
 
 # Minimal custom IAM policy to allow reading SSM parameters for the backend
 resource "aws_iam_policy" "ssm_get_parameters" {
-  name        = "${var.environment}-ssm-get-parameters"
+  name        = "${local.prefix}-ssm-get-parameters"
   description = "Allow reading specific SSM parameters for backend services"
 
   policy = jsonencode({
@@ -179,7 +186,7 @@ resource "aws_iam_role_policy_attachment" "ssm_get_parameters_attachment" {
 
 # CloudWatch Alarm for CPU utilization
 resource "aws_cloudwatch_metric_alarm" "cpu_utilization_high" {
-  alarm_name          = "${var.environment}-compute-cpu-high"
+  alarm_name          = "${local.prefix}-compute-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -199,7 +206,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_utilization_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpu_utilization_low" {
-  alarm_name          = "${var.environment}-compute-cpu-low"
+  alarm_name          = "${local.prefix}-compute-cpu-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -220,7 +227,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_utilization_low" {
 
 # Scaling policies
 resource "aws_autoscaling_policy" "scale_up" {
-  name                   = "${var.environment}-scale-up"
+  name                   = "${local.prefix}-scale-up"
   scaling_adjustment     = 1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
@@ -228,7 +235,7 @@ resource "aws_autoscaling_policy" "scale_up" {
 }
 
 resource "aws_autoscaling_policy" "scale_down" {
-  name                   = "${var.environment}-scale-down"
+  name                   = "${local.prefix}-scale-down"
   scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300

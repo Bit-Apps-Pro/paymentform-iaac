@@ -44,13 +44,13 @@ for short in tenants analytics backup; do
 
   # Fallback to name-based libsql URL if CLI didn't provide one
   if [ -z "$url" ]; then
-    url="libsql://${db_name}-${var.turso_organization}.turso.io"
+    url="libsql://$${db_name}-${var.turso_organization}.turso.io"
   fi
 
   # Parameter names
   upper=$(echo "$short" | tr '[:lower:]' '[:upper:]')
-  param_url="/app/${var.environment}/backend/TURSO_${upper}_DB_URL"
-  param_token="/app/${var.environment}/backend/TURSO_${upper}_DB_TOKEN"
+  param_url="/app/${var.environment}/backend/TURSO_$${upper}_DB_URL"
+  param_token="/app/${var.environment}/backend/TURSO_$${upper}_DB_TOKEN"
 
   echo "Storing DB URL to SSM: $param_url"
   aws ssm put-parameter --name "$param_url" --value "$url" --type SecureString --overwrite --region "${var.region}" $( [ -n "${var.kms_key_id}" ] && echo "--key-id ${var.kms_key_id}" ) || true

@@ -40,17 +40,20 @@ module "storage" {
 }
 
 # Compute module
-module "compute" {
+# Backend compute module (Laravel/FrankenPHP + Caddy — ports 80/443)
+# In public subnets so Cloudflare can proxy directly to it (no ALB needed for sandbox)
+module "compute_backend" {
   source = "./modules/compute"
 
   environment                = var.environment
-  subnet_ids                 = module.networking.private_subnet_ids
-  instance_type              = var.instance_type
-  ami_id                     = var.ami_id
+  instance_prefix            = "${var.environment}-backend"
+  subnet_ids                 = module.networking.public_subnet_ids
+  instance_type              = var.backend_instance_type
+  ami_id                     = var.backend_ami_id != "" ? var.backend_ami_id : var.ami_id
   key_pair_name              = var.key_pair_name
-  min_size                   = var.min_size
-  max_size                   = var.max_size
-  desired_capacity           = var.desired_capacity
+  min_size                   = 1
+  max_size                   = 2
+  desired_capacity           = var.backend_desired_capacity
   scaling_cpu_threshold      = var.scaling_cpu_threshold
   scaling_down_cpu_threshold = var.scaling_down_cpu_threshold
   standard_tags              = local.standard_tags
@@ -58,8 +61,36 @@ module "compute" {
   ebs_optimized              = var.ebs_optimized
   root_volume_size           = var.root_volume_size
   root_volume_type           = var.root_volume_type
-  ecs_cluster_name           = var.ecs_cluster_name
+  ecs_cluster_name           = "${var.ecs_cluster_name}-backend"
   ecs_security_group_id      = module.security.ecs_security_group_id
+  image_registry_type        = var.image_registry_type
+  region                     = var.region
+}
+
+# Renderer compute module (Next.js + Caddy — port 443, on-demand TLS for wildcard subdomains)
+# Must be in public subnets: Cloudflare DNS-only, so Caddy receives direct TLS connections
+module "compute_renderer" {
+  source = "./modules/compute"
+
+  environment                = var.environment
+  instance_prefix            = "${var.environment}-renderer"
+  subnet_ids                 = module.networking.public_subnet_ids
+  instance_type              = var.renderer_instance_type
+  ami_id                     = var.renderer_ami_id != "" ? var.renderer_ami_id : var.ami_id
+  key_pair_name              = var.key_pair_name
+  min_size                   = 1
+  max_size                   = 2
+  desired_capacity           = var.renderer_desired_capacity
+  scaling_cpu_threshold      = var.scaling_cpu_threshold
+  scaling_down_cpu_threshold = var.scaling_down_cpu_threshold
+  standard_tags              = local.standard_tags
+  detailed_monitoring        = var.detailed_monitoring
+  ebs_optimized              = var.ebs_optimized
+  root_volume_size           = var.root_volume_size
+  root_volume_type           = var.root_volume_type
+  ecs_cluster_name           = "${var.ecs_cluster_name}-renderer"
+  ecs_security_group_id      = module.security.ecs_security_group_id
+  image_registry_type        = var.image_registry_type
   region                     = var.region
 }
 
@@ -85,7 +116,6 @@ module "turso_database" {
   resource_prefix    = local.resource_prefix
   environment        = var.environment
   region             = var.region
-  standard_tags      = local.standard_tags
 }
 
 # SSM module to provision application secrets as SecureString parameters
@@ -111,11 +141,12 @@ module "ssm" {
   stripe_client_id              = var.stripe_client_id
   stripe_connect_webhook_secret = var.stripe_connect_webhook_secret
   kv_store_api_token            = var.kv_store_api_token
+  ghcr_token                    = var.ghcr_token
 }
 
 # Cloudflare DNS module
-# Routes traffic directly to EC2 instances via Traefik
-# Traefik handles SSL/TLS termination and reverse proxy
+# Backend: Cloudflare proxied → EC2 backend (ports 80/443, Caddy/FrankenPHP)
+# Renderer: Cloudflare DNS-only → EC2 renderer (port 443, Caddy on-demand TLS)
 module "cloudflare" {
   source = "./modules/cloudflare"
 
@@ -126,10 +157,10 @@ module "cloudflare" {
   api_subdomain         = var.api_subdomain
   app_subdomain         = var.app_subdomain
   renderer_subdomain    = var.renderer_subdomain
-  renderer_origin_ip    = var.renderer_origin_ip
+  renderer_origin_ip    = length(module.compute_renderer.instance_ips) > 0 ? module.compute_renderer.instance_ips[0] : var.renderer_origin_ip
   enable_load_balancer  = var.enable_cloudflare_lb
-  api_origin_ips        = module.compute.instance_ips
-  app_origin_ips        = module.compute.instance_ips
+  api_origin_ips        = module.compute_backend.instance_ips
+  app_origin_ips        = module.compute_backend.instance_ips
   health_check_path     = var.health_check_path
   notification_email    = var.notification_email
   enable_waf            = var.enable_cloudflare_waf
@@ -149,12 +180,12 @@ module "ecr" {
   standard_tags = local.standard_tags
 }
 
-# Attach ECR pull policy to compute instance role when ECR is enabled
+# Attach ECR pull policy to backend compute instance role when ECR is enabled
 resource "aws_iam_role_policy_attachment" "compute_instance_ecr_pull" {
   count      = var.enable_ecr && contains(["sandbox", "prod"], var.environment) ? 1 : 0
-  role       = module.compute.instance_role_name
+  role       = module.compute_backend.instance_role_name
   policy_arn = module.ecr[0].ecr_pull_policy_arn
-  depends_on = [module.ecr, module.compute]
+  depends_on = [module.ecr, module.compute_backend]
 }
 
 # AWS Amplify module for renderer and client deployments

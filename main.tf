@@ -40,6 +40,32 @@ module "infrastructure" {
   desired_capacity      = var.desired_capacity
   region                = var.region
   environment           = var.environment
+  # Image registry
+  image_registry_type = var.image_registry_type
+  enable_ecr          = var.enable_ecr
+  ghcr_token          = var.ghcr_token
+  # Two-instance sizing
+  backend_instance_type     = var.backend_instance_type
+  renderer_instance_type    = var.renderer_instance_type
+  backend_desired_capacity  = var.backend_desired_capacity
+  renderer_desired_capacity = var.renderer_desired_capacity
+  backend_ami_id            = var.backend_ami_id
+  renderer_ami_id           = var.renderer_ami_id
+  key_pair_name             = var.key_pair_name
+  # Secrets
+  google_client_secret           = var.google_client_secret
+  tenant_db_encryption_key       = var.tenant_db_encryption_key
+  stripe_secret                  = var.stripe_secret
+  aws_secret_access_key          = var.aws_secret_access_key
+  db_password                    = var.db_password
+  stripe_client_id               = var.stripe_client_id
+  pgadmin_default_password       = var.pgadmin_default_password
+  tenant_db_auth_token           = var.tenant_db_auth_token
+  aws_access_key_id              = var.aws_access_key_id
+  turso_auth_token               = var.turso_auth_token
+  mail_password                  = var.mail_password
+  kv_store_api_token             = var.kv_store_api_token
+  stripe_connect_webhook_secret  = var.stripe_connect_webhook_secret
 }
 
 # Re-export all infrastructure outputs
@@ -93,8 +119,8 @@ output "neon_connection_string" {
   sensitive   = true
 }
 output "tenant_db_url" {
-  description = "Turso tenant database connection URL"
-  value       = module.infrastructure.tenant_db_url
+  description = "Turso tenant database SSM parameter path"
+  value       = module.infrastructure.tenant_db_ssm_path
   sensitive   = true
 }
 
@@ -104,8 +130,8 @@ output "tenant_db_name" {
 }
 
 output "analytics_db_url" {
-  description = "Turso analytics database connection URL"
-  value       = module.infrastructure.analytics_db_url
+  description = "Turso analytics database SSM parameter path"
+  value       = module.infrastructure.analytics_db_ssm_path
   sensitive   = true
 }
 
@@ -115,8 +141,8 @@ output "analytics_db_name" {
 }
 
 output "backup_db_url" {
-  description = "Turso backup database connection URL"
-  value       = module.infrastructure.backup_db_url
+  description = "Turso backup database SSM parameter path"
+  value       = module.infrastructure.backup_db_ssm_path
   sensitive   = true
 }
 

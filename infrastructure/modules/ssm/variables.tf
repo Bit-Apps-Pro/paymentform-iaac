@@ -104,3 +104,10 @@ variable "kv_store_api_token" {
   type        = string
   sensitive   = true
 }
+
+variable "ghcr_token" {
+  description = "GitHub Container Registry PAT for Docker image pull (read:packages scope)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -141,3 +141,13 @@ resource "aws_ssm_parameter" "kv_store_api_token" {
   overwrite   = true
   key_id      = var.kms_key_id
 }
+
+resource "aws_ssm_parameter" "ghcr_token" {
+  count       = var.ghcr_token != "" ? 1 : 0
+  name        = "/app/${var.environment}/backend/GHCR_TOKEN"
+  description = "GitHub Container Registry token for Docker image pull"
+  type        = "SecureString"
+  value       = var.ghcr_token
+  overwrite   = true
+  key_id      = var.kms_key_id
+}

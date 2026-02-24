@@ -116,3 +116,10 @@ variable "region" {
   type        = string
   nullable    = false
 }
+
+variable "instance_prefix" {
+  description = "Unique prefix for naming resources in this compute instance (avoids conflicts when module is used multiple times)"
+  type        = string
+  default     = ""
+  # When empty, falls back to var.environment
+}

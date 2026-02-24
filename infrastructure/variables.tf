@@ -48,6 +48,16 @@ variable "enable_ecr" {
   default     = false
 }
 
+variable "image_registry_type" {
+  description = "Type of image registry to use (local, ecr, ghcr)"
+  type        = string
+  default     = "local"
+  validation {
+    condition     = contains(["local", "ecr", "ghcr"], var.image_registry_type)
+    error_message = "image_registry_type must be one of: local, ecr, ghcr"
+  }
+}
+
 variable "ecr_repositories" {
   description = "List of ECR repository/service names to create for non-dev environments"
   type        = list(string)
@@ -421,17 +431,64 @@ variable "cors_allowed_origins" {
 
 # Compute variables
 variable "instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 instance type (used as fallback when backend/renderer specific types not set)"
   type        = string
   default     = "t4g.micro"
   nullable    = false
 }
 
+variable "backend_instance_type" {
+  description = "EC2 instance type for the backend (Laravel/FrankenPHP) instance"
+  type        = string
+  default     = "t4g.micro"
+  nullable    = false
+}
+
+variable "renderer_instance_type" {
+  description = "EC2 instance type for the renderer (Next.js + Caddy) instance"
+  type        = string
+  default     = "t4g.micro"
+  nullable    = false
+}
+
+variable "backend_desired_capacity" {
+  description = "Desired EC2 instance count for backend ASG"
+  type        = number
+  default     = 1
+  nullable    = false
+}
+
+variable "renderer_desired_capacity" {
+  description = "Desired EC2 instance count for renderer ASG"
+  type        = number
+  default     = 1
+  nullable    = false
+}
+
 variable "ami_id" {
-  description = "AMI ID for the instances"
+  description = "AMI ID for the instances (used as fallback when backend/renderer specific IDs not set)"
   type        = string
   default     = "ami-0abcdef1234567890" # Default placeholder - should be set per region
   nullable    = false
+}
+
+variable "backend_ami_id" {
+  description = "AMI ID for backend EC2 (Ubuntu 24.04 ARM64). Falls back to ami_id if empty."
+  type        = string
+  default     = ""
+}
+
+variable "renderer_ami_id" {
+  description = "AMI ID for renderer EC2 (Ubuntu 24.04 ARM64). Falls back to ami_id if empty."
+  type        = string
+  default     = ""
+}
+
+variable "ghcr_token" {
+  description = "GitHub Container Registry PAT (read:packages scope) for EC2 image pull"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "key_pair_name" {

@@ -12,6 +12,9 @@ ENV ?= dev
 REGION ?= us-east-1
 AWS_PROFILE ?= default
 
+# Export so all aws CLI calls and OpenTofu (which uses the same credential chain) use this profile
+export AWS_PROFILE
+
 # Fetch credentials from AWS Secrets Manager
 fetch-credentials:
 	@echo "Fetching database credentials..."

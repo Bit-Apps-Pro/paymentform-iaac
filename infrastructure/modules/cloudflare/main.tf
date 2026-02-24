@@ -86,10 +86,10 @@ resource "cloudflare_ruleset" "rate_limiting" {
       expression  = "(http.host eq \"${var.api_subdomain}\" and http.request.method eq \"POST\")"
       action      = "block"
       ratelimit = {
-        characteristics    = ["ip.src"]
-        period             = 60
-        requests_per_period = var.rate_limit_requests  # Updated attribute name
-        mitigation_timeout = 600
+        characteristics     = ["ip.src"]
+        period              = 60
+        requests_per_period = var.rate_limit_requests # Updated attribute name
+        mitigation_timeout  = 600
       }
     }
   ]

@@ -28,9 +28,52 @@ variable "turso_organization" {
 }
 
 variable "desired_capacity" {
-  description = "Desired capacity of the Auto Scaling Group"
+  description = "Desired capacity of the Auto Scaling Group (legacy fallback)"
   type        = number
   default     = 1
+}
+
+variable "backend_instance_type" {
+  description = "EC2 instance type for the backend (Laravel/FrankenPHP) instance"
+  type        = string
+  default     = "t4g.micro"
+}
+
+variable "renderer_instance_type" {
+  description = "EC2 instance type for the renderer (Next.js + Caddy) instance"
+  type        = string
+  default     = "t4g.micro"
+}
+
+variable "backend_desired_capacity" {
+  description = "Desired EC2 instance count for backend ASG"
+  type        = number
+  default     = 1
+}
+
+variable "renderer_desired_capacity" {
+  description = "Desired EC2 instance count for renderer ASG"
+  type        = number
+  default     = 1
+}
+
+variable "backend_ami_id" {
+  description = "AMI ID for backend EC2 (Ubuntu 24.04 ARM64). Falls back to ami_id if empty."
+  type        = string
+  default     = ""
+}
+
+variable "renderer_ami_id" {
+  description = "AMI ID for renderer EC2 (Ubuntu 24.04 ARM64). Falls back to ami_id if empty."
+  type        = string
+  default     = ""
+}
+
+variable "ghcr_token" {
+  description = "GitHub Container Registry PAT (read:packages scope) for EC2 image pull"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "region" {
@@ -166,4 +209,102 @@ variable "managed_by" {
   description = "Tool used to manage infrastructure"
   type        = string
   default     = "opentofu"
+}
+
+variable "key_pair_name" {
+  description = "Name of the SSH key pair for EC2 instances (optional)"
+  type        = string
+  default     = ""
+}
+
+# Application secrets — passed through to SSM module
+variable "turso_auth_token" {
+  description = "Turso auth token used for CLI operations"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "db_password" {
+  description = "PostgreSQL database password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "pgadmin_default_password" {
+  description = "PGAdmin default password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "tenant_db_auth_token" {
+  description = "Tenant database auth token"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "tenant_db_encryption_key" {
+  description = "Tenant database encryption key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "mail_password" {
+  description = "SMTP mail password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "aws_access_key_id" {
+  description = "AWS access key ID for application use"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS secret access key for application use"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_secret" {
+  description = "Stripe secret key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_client_id" {
+  description = "Stripe client ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_connect_webhook_secret" {
+  description = "Stripe Connect webhook secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "kv_store_api_token" {
+  description = "Cloudflare KV store API token"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
