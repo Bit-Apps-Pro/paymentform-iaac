@@ -65,6 +65,7 @@ module "compute_backend" {
   ecs_security_group_id      = module.security.ecs_security_group_id
   region                     = var.region
   bucket_name                = module.storage.application_storage_bucket_name
+  service_type               = "backend"
 }
 
 # Renderer compute module (Next.js + Caddy — port 443, on-demand TLS for wildcard subdomains)
@@ -92,6 +93,7 @@ module "compute_renderer" {
   ecs_security_group_id      = module.security.ecs_security_group_id
   region                     = var.region
   bucket_name                = module.storage.application_storage_bucket_name
+  service_type               = "renderer"
 }
 
 # SSM module to provision application secrets as SecureString parameters

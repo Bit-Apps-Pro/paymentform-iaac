@@ -111,3 +111,12 @@ variable "instance_prefix" {
   default     = ""
   # When empty, falls back to var.environment
 }
+
+variable "service_type" {
+  description = "Service type to deploy: 'backend' (FrankenPHP + Caddy + Client) or 'renderer' (Next.js + Caddy)"
+  type        = string
+  validation {
+    condition     = contains(["backend", "renderer"], var.service_type)
+    error_message = "service_type must be either 'backend' or 'renderer'."
+  }
+}

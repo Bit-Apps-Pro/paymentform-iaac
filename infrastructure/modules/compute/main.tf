@@ -31,6 +31,7 @@ resource "aws_launch_template" "compute" {
     environment      = var.environment
     region           = var.region
     bucket_name      = var.bucket_name
+    service_type     = var.service_type
   }))
 
   key_name      = var.key_pair_name
