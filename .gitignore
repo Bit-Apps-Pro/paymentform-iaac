@@ -25,6 +25,10 @@ crash.*.log
 .env
 .env.local
 
+# Wrangler configuration (may contain sensitive account IDs)
+wrangler.toml
+wrangler.json
+
 # Output files
 outputs.json
 *-outputs.json

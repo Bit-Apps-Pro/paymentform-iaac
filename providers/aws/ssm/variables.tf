@@ -47,12 +47,6 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "pgadmin_default_password" {
-  description = "Default password for pgAdmin"
-  type        = string
-  sensitive   = true
-}
-
 variable "tenant_db_auth_token" {
   description = "Tenant database JWT auth token used by tenant services"
   type        = string

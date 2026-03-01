@@ -75,7 +75,7 @@ help:
 
 init:
 	@echo "🚀 Initializing OpenTofu for $(ENV)..."
-	@cd environments/$(ENV) && tofu init -backend-config=backend.hcl
+	@cd environments/$(ENV) && tofu init
 
 plan:
 	@echo "📋 Planning $(ENV) environment..."

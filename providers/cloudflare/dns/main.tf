@@ -69,11 +69,11 @@ resource "cloudflare_ruleset" "waf_custom" {
   kind        = "zone"
   phase       = "http_request_firewall_custom"
 
-  rules {
+  rules = [{
     description = "Block high threat score requests"
     expression  = "(cf.threat_score > 50)"
     action      = "block"
-  }
+  }]
 }
 
 # Rate Limiting Rule
@@ -86,17 +86,17 @@ resource "cloudflare_ruleset" "rate_limiting" {
   kind        = "zone"
   phase       = "http_ratelimit"
 
-  rules {
+  rules = [{
     description = "Rate limit API requests"
     expression  = "(http.host eq \"${var.api_subdomain}\" and http.request.method eq \"POST\")"
     action      = "block"
-    ratelimit {
+    ratelimit = {
       characteristics     = ["ip.src"]
       period              = 60
       requests_per_period = var.rate_limit_requests
       mitigation_timeout  = 600
     }
-  }
+  }]
 }
 
 # Cache Rules for static assets
@@ -109,29 +109,30 @@ resource "cloudflare_ruleset" "cache_rules" {
   kind        = "zone"
   phase       = "http_request_cache_settings"
 
-  rules {
-    description = "Cache static assets"
-    expression  = "(http.host eq \"${var.app_subdomain}\" and (http.request.uri.path matches \"\\.(js|css|png|jpg|svg|gif|woff|woff2)$\"))"
-    action      = "set_cache_settings"
-    action_parameters {
-      cache = true
-      edge_ttl {
-        mode    = "override_origin"
-        default = 7200
+  rules = [
+    {
+      description = "Cache static assets"
+      expression  = "(http.host eq \"${var.app_subdomain}\" and (http.request.uri.path matches \"\\.(js|css|png|jpg|svg|gif|woff|woff2)$\"))"
+      action      = "set_cache_settings"
+      action_parameters = {
+        cache = true
+        edge_ttl = {
+          mode    = "override_origin"
+          default = 7200
+        }
+        browser_ttl = {
+          mode    = "override_origin"
+          default = 3600
+        }
       }
-      browser_ttl {
-        mode    = "override_origin"
-        default = 3600
+    },
+    {
+      description = "Bypass cache for HTML pages"
+      expression  = "(http.host eq \"${var.app_subdomain}\" and (http.request.uri.path matches \"\\.(html|php)$\"))"
+      action      = "set_cache_settings"
+      action_parameters = {
+        cache = false
       }
     }
-  }
-
-  rules {
-    description = "Bypass cache for HTML pages"
-    expression  = "(http.host eq \"${var.app_subdomain}\" and (http.request.uri.path matches \"\\.(html|php)$\"))"
-    action      = "set_cache_settings"
-    action_parameters {
-      cache = false
-    }
-  }
+  ]
 }

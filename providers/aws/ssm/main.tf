@@ -82,20 +82,6 @@ resource "aws_ssm_parameter" "db_password" {
   }
 }
 
-resource "aws_ssm_parameter" "pgadmin_default_password" {
-  count       = var.pgadmin_default_password != "" ? 1 : 0
-  name        = "/app/${var.environment}/backend/PGADMIN_DEFAULT_PASSWORD"
-  description = "pgAdmin default password"
-  type        = "SecureString"
-  value       = var.pgadmin_default_password
-  overwrite   = true
-  key_id      = var.kms_key_id
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 resource "aws_ssm_parameter" "tenant_db_auth_token" {
   count       = var.tenant_db_auth_token != "" ? 1 : 0
   name        = "/app/${var.environment}/backend/TENANT_DB_AUTH_TOKEN"

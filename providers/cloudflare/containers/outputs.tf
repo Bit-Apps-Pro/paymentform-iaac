@@ -1,8 +1,8 @@
 # Cloudflare Container Module Outputs
 
 output "container_id" {
-  description = "Container ID"
-  value       = try(cloudflare_container.this[0].id, null)
+  description = "Container ID (deployed via wrangler)"
+  value       = "wrangler-deployed-${local.full_container_name}"
 }
 
 output "container_name" {
@@ -26,6 +26,6 @@ output "dns_record_name" {
 }
 
 output "registry_credential_id" {
-  description = "Registry credential ID"
-  value       = try(cloudflare_registry_credential.this[0].id, null)
+  description = "Registry credential ID (not available - resource not supported in current provider)"
+  value       = null
 }

@@ -23,11 +23,6 @@ output "db_password_ssm_path" {
   value       = length(aws_ssm_parameter.db_password) > 0 ? aws_ssm_parameter.db_password[0].name : ""
 }
 
-output "pgadmin_default_password_ssm_path" {
-  description = "SSM parameter path for PGADMIN_DEFAULT_PASSWORD"
-  value       = length(aws_ssm_parameter.pgadmin_default_password) > 0 ? aws_ssm_parameter.pgadmin_default_password[0].name : ""
-}
-
 output "tenant_db_auth_token_ssm_path" {
   description = "SSM parameter path for TENANT_DB_AUTH_TOKEN"
   value       = length(aws_ssm_parameter.tenant_db_auth_token) > 0 ? aws_ssm_parameter.tenant_db_auth_token[0].name : ""

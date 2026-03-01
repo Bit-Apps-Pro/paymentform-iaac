@@ -57,24 +57,6 @@ resource "cloudflare_r2_bucket" "ssl_config" {
   }
 }
 
-# Lifecycle Rule for SSL Config Bucket
-# Automatically expires old certificate files
-resource "cloudflare_r2_bucket_lifecycle_rule" "ssl_config" {
-  count = var.r2_ssl_bucket_enabled && var.lifecycle_rules_enabled ? 1 : 0
-
-  account_id = var.cloudflare_account_id
-  bucket     = cloudflare_r2_bucket.ssl_config[0].name
-
-  rule_id = "expire-old-certs"
-  enabled = true
-
-  expiration {
-    days = var.ssl_cert_retention_days
-  }
-
-  prefix = "expired/"
-}
-
 # Cloudflare Worker for serving public files from R2
 resource "cloudflare_workers_script" "cdn_worker" {
   count = var.worker_enabled && var.worker_route_pattern != "" ? 1 : 0
@@ -84,23 +66,23 @@ resource "cloudflare_workers_script" "cdn_worker" {
   content            = file("${path.module}/worker/index.js")
   compatibility_date = "2024-01-01"
 
-  bindings {
-    name        = "R2_BUCKET"
-    type        = "r2_bucket"
-    bucket_name = cloudflare_r2_bucket.application_storage.name
-  }
-
-  bindings {
-    name = "ENVIRONMENT"
-    type = "plain_text"
-    text = var.environment
-  }
-
-  bindings {
-    name = "CORS_ORIGINS"
-    type = "plain_text"
-    text = join(",", var.cors_allowed_origins)
-  }
+  bindings = [
+    {
+      name        = "R2_BUCKET"
+      type        = "r2_bucket"
+      bucket_name = cloudflare_r2_bucket.application_storage.name
+    },
+    {
+      name = "ENVIRONMENT"
+      type = "plain_text"
+      text = var.environment
+    },
+    {
+      name = "CORS_ORIGINS"
+      type = "plain_text"
+      text = join(",", var.cors_allowed_origins)
+    }
+  ]
 }
 
 # Worker Route - binds Worker to domain pattern

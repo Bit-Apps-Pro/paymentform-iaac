@@ -87,6 +87,18 @@ variable "instance_max_count" {
   default     = 3
 }
 
+variable "container_port" {
+  description = "Port the container listens on"
+  type        = number
+  default     = 8080
+}
+
+variable "prod_image" {
+  description = "Container image for production environment (optional)"
+  type        = string
+  default     = ""
+}
+
 # Environment Variables
 variable "container_env_vars" {
   description = "Environment variables for the container"

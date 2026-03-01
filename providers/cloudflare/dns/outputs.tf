@@ -17,17 +17,17 @@ output "renderer_dns_record_id" {
 
 output "api_hostname" {
   description = "Full hostname for API"
-  value       = cloudflare_dns_record.api.hostname
+  value       = cloudflare_dns_record.api.name
 }
 
 output "app_hostname" {
   description = "Full hostname for App"
-  value       = cloudflare_dns_record.app.hostname
+  value       = cloudflare_dns_record.app.name
 }
 
 output "renderer_hostname" {
   description = "Full hostname pattern for renderer"
-  value       = cloudflare_dns_record.renderer_wildcard.hostname
+  value       = cloudflare_dns_record.renderer_wildcard.name
 }
 
 output "waf_ruleset_id" {
