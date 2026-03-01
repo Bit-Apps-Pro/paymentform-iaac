@@ -1,0 +1,19 @@
+---
+# Staging environment variables
+
+environment: "sandbox"
+domain_name: "sandbox.paymentform.io"
+enable_debug_logging: false
+log_retention_days: 14
+
+# Services
+services:
+  - backend
+
+# Resource limits for sandbox
+docker_memory_limit: "2g"
+docker_cpu_limit: "2"
+
+# Monitoring
+enable_cloudwatch_monitoring: true
+enable_performance_insights: true
