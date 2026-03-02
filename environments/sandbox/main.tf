@@ -82,6 +82,92 @@ module "aws_compute_backend" {
   region                     = "us-east-1"
   bucket_name                = module.cloudflare_r2.application_storage_bucket_name
   service_type               = "backend"
+
+  container_env_vars = {
+    APP_NAME          = "Payment Form"
+    APP_ENV           = "production"
+    APP_URL           = "https://api.sandbox.paymentform.io"
+    APP_BASE_DOMAIN   = "sandbox.paymentform.io"
+    FRONTEND_URL      = "https://app.paymentform.io"
+    FRONTEND_DASH_URL = "https://app.paymentform.io/myforms"
+    APP_KEY           = var.app_key
+    APP_DEBUG         = "false"
+
+    APP_LOCALE          = en
+    APP_FALLBACK_LOCALE = en
+
+    BCRYPT_ROUNDS = 12
+
+    LOG_CHANNEL              = stack
+    LOG_STACK                = single
+    LOG_DEPRECATIONS_CHANNEL = null
+    LOG_LEVEL                = error
+
+    DB_CONNECTION = "pgsql"
+    DB_HOST       = var.db_host
+    DB_PORT       = var.db_port
+    DB_DATABASE   = var.db_database
+    DB_USERNAME   = var.db_username
+    DB_PASSWORD   = var.db_password
+
+    TENANT_DB_SYNC_URL          = ""
+    TENANT_DB_API_URL           = "https://api.turso.tech"
+    TENANT_TURSO_ORG_SLUG       = var.turso_org_slug
+    TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
+
+    SESSION_DRIVER   = "database"
+    SESSION_LIFETIME = 120
+    SESSION_ENCRYPT  = false
+    SESSION_PATH     = "/"
+    SESSION_DOMAIN   = null
+
+    BROADCAST_CONNECTION = "log"
+    FILESYSTEM_DISK      = "local"
+    QUEUE_CONNECTION     = "database"
+    CACHE_STORE          = "database"
+
+
+    REDIS_CLIENT   = phpredis
+    REDIS_HOST     = var.redis_host
+    REDIS_PORT     = var.redis_port
+    REDIS_PASSWORD = var.redis_password
+
+    MAIL_MAILER       = "smtp"
+    MAIL_HOST         = "smtp.mailgun.org"
+    MAIL_PORT         = "587"
+    MAIL_FROM_ADDRESS = "hello@paymentform.io"
+    MAIL_FROM_NAME    = "Payment Form"
+
+    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_DEFAULT_REGION          = "us-east-1"
+    AWS_BUCKET                  = "paymentform-uploads"
+    AWS_USE_PATH_STYLE_ENDPOINT = true
+    AWS_ENDPOINT                = "https://paymentform-uploads.r2.cloudflarestorage.com"
+    AWS_CLOUDFRONT_URL          = "https://paymentform-uploads.r2.cloudflarestorage.com"
+
+    CORS_ALLOWED_ORIGINS = "https://app.sandbox.paymentform.io"
+    CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
+    CORS_ALLOWED_HEADERS = "Content-Type,X-Requested-With,Authorization,X-CSRF-Token, X-XSRF-TOKEN,Accept,Origin, X-Tenant"
+    CORS_EXPOSED_HEADERS = "Content-Disposition"
+
+    SANCTUM_STATEFUL_DOMAINS = ".sandbox.paymentform.io"
+    SESSION_DOMAIN           = ".sandbox.paymentform.io"
+
+    GOOGLE_CLIENT_ID     = var.google_client_id
+    GOOGLE_CLIENT_SECRET = var.google_client_secret
+    GOOGLE_REDIRECT_URI  = "https://api.sandbox.paymentform.io/auth/google/callback"
+
+    STRIPE_PUBLIC                 = var.stripe_public_key
+    STRIPE_SECRET                 = var.stripe_secret
+    STRIPE_CLIENT_ID              = var.stripe_client_id
+    STRIPE_REDIRECT_URI           = "https://api.sandbox.paymentform.io/stripe/callback"
+    STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
+
+    KV_STORE_API_URL      = module.cloudflare_kv_tenants.api_endpoint
+    KV_STORE_API_TOKEN    = var.kv_store_api_token
+    KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
+  }
 }
 
 module "aws_ssm" {
@@ -91,7 +177,6 @@ module "aws_ssm" {
   app_key           = var.app_key
   redis_password    = var.redis_password
   turso_auth_token  = var.turso_auth_token
-  turso_api_token   = var.turso_api_token
   neon_database_url = var.neon_database_url
   kms_key_id        = ""
 
@@ -159,7 +244,7 @@ module "cloudflare_container_client" {
   cloudflare_zone_id    = var.cloudflare_zone_id
 
   container_name    = "client"
-  container_image   = "ghcr.io/bit-apps-pro/paymentform-client:dev-latest"
+  container_image   = var.client_container_image
   container_enabled = true
 
   domain_name    = "app.sandbox.paymentform.io"
@@ -170,12 +255,12 @@ module "cloudflare_container_client" {
   instance_min_count   = 1
 
   container_env_vars = {
-    API_URL           = "https://api.sandbox.paymentform.io"
-    DOMAIN            = "https://app.sandbox.paymentform.io"
-    COOKIE_DOMAIN     = ".sandbox.paymentform.io"
-    FORM_RENDER_URL   = "https://renderer.sandbox.paymentform.io/"
-    STRIPE_KEY        = var.stripe_public_key
-    NODE_ENV          = "production"
+    API_URL         = "https://api.sandbox.paymentform.io"
+    DOMAIN          = "https://app.sandbox.paymentform.io"
+    COOKIE_DOMAIN   = ".sandbox.paymentform.io"
+    FORM_RENDER_URL = "https://renderer.sandbox.paymentform.io/"
+    STRIPE_KEY      = var.stripe_public_key
+    NODE_ENV        = "production"
   }
 
   registry_url      = "ghcr.io"
@@ -194,7 +279,7 @@ module "cloudflare_container_renderer" {
   cloudflare_zone_id    = var.cloudflare_zone_id
 
   container_name    = "renderer"
-  container_image   = "ghcr.io/bit-apps-pro/paymentform-renderer:dev-latest"
+  container_image   = var.renderer_container_image
   container_enabled = true
 
   domain_name    = "*.sandbox.paymentform.io"
@@ -215,7 +300,7 @@ module "cloudflare_container_renderer" {
     KV_STORE_API_TOKEN       = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID    = module.cloudflare_kv_tenants.namespace_id
     STRIPE_KEY               = var.stripe_public_key
-    RESERVED_SUBDOMAINS     = "www,admin,api,app,dev,test"
+    RESERVED_SUBDOMAINS      = "www,admin,api,app,dev,test"
     NODE_ENV                 = "production"
   }
 
@@ -235,7 +320,7 @@ module "cloudflare_container_backend" {
   cloudflare_zone_id    = var.cloudflare_zone_id
 
   container_name    = "backend"
-  container_image   = "ghcr.io/bit-apps-pro/paymentform-backend:dev-latest"
+  container_image   = var.client_container_image
   container_enabled = true
 
   domain_name    = "api.sandbox.paymentform.io"
@@ -246,58 +331,89 @@ module "cloudflare_container_backend" {
   instance_min_count   = 1
 
   container_env_vars = {
-    APP_NAME                  = "Payment Form"
-    APP_ENV                  = "production"
-    APP_URL                  = "https://api.sandbox.paymentform.io"
-    APP_KEY                  = var.app_key
-    APP_DEBUG                = "false"
-    
-    DB_CONNECTION            = "pgsql"
-    DB_HOST                 = var.db_host
-    DB_PORT                 = var.db_port
-    DB_DATABASE             = var.db_database
-    DB_USERNAME             = var.db_username
-    DB_PASSWORD             = var.db_password
-    
-    REDIS_HOST              = var.redis_host
-    REDIS_PORT              = var.redis_port
-    REDIS_PASSWORD          = var.redis_password
-    
-    AWS_ACCESS_KEY_ID       = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY   = var.aws_secret_access_key
-    AWS_DEFAULT_REGION      = "us-east-1"
-    AWS_BUCKET              = "paymentform-uploads"
-    AWS_ENDPOINT            = "https://paymentform-uploads.r2.cloudflarestorage.com"
-    
-    TENANT_DB_SYNC_URL      = ""
-    TENANT_DB_API_URL       = "https://api.turso.tech"
-    TENANT_TURSO_ORG_SLUG  = "ovia"
+    APP_NAME          = "Payment Form"
+    APP_ENV           = "production"
+    APP_URL           = "https://api.sandbox.paymentform.io"
+    APP_BASE_DOMAIN   = "sandbox.paymentform.io"
+    FRONTEND_URL      = "https://app.paymentform.io"
+    FRONTEND_DASH_URL = "https://app.paymentform.io/myforms"
+    APP_KEY           = var.app_key
+    APP_DEBUG         = "false"
+
+    APP_LOCALE          = en
+    APP_FALLBACK_LOCALE = en
+
+    BCRYPT_ROUNDS = 12
+
+    LOG_CHANNEL              = stack
+    LOG_STACK                = single
+    LOG_DEPRECATIONS_CHANNEL = null
+    LOG_LEVEL                = error
+
+    DB_CONNECTION = "pgsql"
+    DB_HOST       = var.db_host
+    DB_PORT       = var.db_port
+    DB_DATABASE   = var.db_database
+    DB_USERNAME   = var.db_username
+    DB_PASSWORD   = var.db_password
+
+    TENANT_DB_SYNC_URL          = ""
+    TENANT_DB_API_URL           = "https://api.turso.tech"
+    TENANT_TURSO_ORG_SLUG       = var.turso_org_slug
     TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
-    
-    STRIPE_PUBLIC           = var.stripe_public_key
-    STRIPE_SECRET           = var.stripe_secret
-    STRIPE_CLIENT_ID        = var.stripe_client_id
-    STRIPE_REDIRECT_URI     = "https://api.sandbox.paymentform.io/stripe/callback"
-    
-    CORS_ALLOWED_ORIGINS    = "https://app.sandbox.paymentform.io"
+
+    SESSION_DRIVER   = "database"
+    SESSION_LIFETIME = 120
+    SESSION_ENCRYPT  = false
+    SESSION_PATH     = "/"
+    SESSION_DOMAIN   = null
+
+    BROADCAST_CONNECTION = "log"
+    FILESYSTEM_DISK      = "local"
+    QUEUE_CONNECTION     = "database"
+    CACHE_STORE          = "database"
+
+
+    REDIS_CLIENT   = phpredis
+    REDIS_HOST     = var.redis_host
+    REDIS_PORT     = var.redis_port
+    REDIS_PASSWORD = var.redis_password
+
+    MAIL_MAILER       = "smtp"
+    MAIL_HOST         = "smtp.mailgun.org"
+    MAIL_PORT         = "587"
+    MAIL_FROM_ADDRESS = "hello@paymentform.io"
+    MAIL_FROM_NAME    = "Payment Form"
+
+    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_DEFAULT_REGION          = "us-east-1"
+    AWS_BUCKET                  = "paymentform-uploads"
+    AWS_USE_PATH_STYLE_ENDPOINT = true
+    AWS_ENDPOINT                = "https://paymentform-uploads.r2.cloudflarestorage.com"
+    AWS_CLOUDFRONT_URL          = "https://paymentform-uploads.r2.cloudflarestorage.com"
+
+    CORS_ALLOWED_ORIGINS = "https://app.sandbox.paymentform.io"
+    CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
+    CORS_ALLOWED_HEADERS = "Content-Type,X-Requested-With,Authorization,X-CSRF-Token, X-XSRF-TOKEN,Accept,Origin, X-Tenant"
+    CORS_EXPOSED_HEADERS = "Content-Disposition"
+
     SANCTUM_STATEFUL_DOMAINS = ".sandbox.paymentform.io"
-    SESSION_DOMAIN          = ".sandbox.paymentform.io"
-    
-    MAIL_MAILER             = "smtp"
-    MAIL_HOST               = "smtp.mailgun.org"
-    MAIL_PORT               = "587"
-    MAIL_FROM_ADDRESS       = "hello@paymentform.io"
-    MAIL_FROM_NAME          = "Payment Form"
-    
-    KV_STORE_API_URL        = module.cloudflare_kv_tenants.api_endpoint
-    KV_STORE_API_TOKEN     = var.kv_store_api_token
-    KV_STORE_NAMESPACE_ID  = module.cloudflare_kv_tenants.namespace_id
-    
-    SESSION_DRIVER          = "database"
-    QUEUE_CONNECTION        = "database"
-    CACHE_STORE             = "database"
-    LOG_CHANNEL             = "stack"
-    LOG_LEVEL               = "info"
+    SESSION_DOMAIN           = ".sandbox.paymentform.io"
+
+    GOOGLE_CLIENT_ID     = var.google_client_id
+    GOOGLE_CLIENT_SECRET = var.google_client_secret
+    GOOGLE_REDIRECT_URI  = "https://api.sandbox.paymentform.io/auth/google/callback"
+
+    STRIPE_PUBLIC                 = var.stripe_public_key
+    STRIPE_SECRET                 = var.stripe_secret
+    STRIPE_CLIENT_ID              = var.stripe_client_id
+    STRIPE_REDIRECT_URI           = "https://api.sandbox.paymentform.io/stripe/callback"
+    STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
+
+    KV_STORE_API_URL      = module.cloudflare_kv_tenants.api_endpoint
+    KV_STORE_API_TOKEN    = var.kv_store_api_token
+    KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
   }
 
   registry_url      = "ghcr.io"

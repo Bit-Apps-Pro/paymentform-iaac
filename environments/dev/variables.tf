@@ -25,6 +25,10 @@ variable "ghcr_token" {
   sensitive = true
 }
 
+variable "ghcr_username" {
+  type = string
+}
+
 variable "client_container_image" {
   type    = string
   default = "ghcr.io/your-org/paymentform-client:latest"
@@ -33,11 +37,6 @@ variable "client_container_image" {
 variable "renderer_container_image" {
   type    = string
   default = "ghcr.io/your-org/paymentform-renderer:latest"
-}
-
-variable "enable_containers" {
-  type    = bool
-  default = true
 }
 
 variable "r2_ssl_access_key_id" {
@@ -68,6 +67,55 @@ variable "turso_auth_token" {
 variable "turso_api_token" {
   type      = string
   sensitive = true
+}
+
+variable "turso_org_slug" {
+  type = string
+}
+
+variable "db_host" {
+  description = "Database host IP/hostname"
+  type        = string
+  default     = "10.0.1.50"
+}
+
+variable "db_port" {
+  description = "Database port"
+  type        = number
+  default     = 5432
+}
+
+variable "db_database" {
+  description = "Database name"
+  type        = string
+  default     = "shopper_backend"
+}
+
+variable "db_username" {
+  description = "Database username"
+  type        = string
+  default     = "postgres"
+}
+
+variable "redis_host" {
+  description = "Redis host IP/hostname"
+  type        = string
+  default     = "10.0.1.51"
+}
+
+variable "redis_port" {
+  description = "Redis port"
+  type        = number
+  default     = 6379
+}
+
+variable "stripe_public_key" {
+  type    = string
+  default = ""
+}
+
+variable "google_client_id" {
+  type = string
 }
 
 variable "app_key" {

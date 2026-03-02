@@ -120,3 +120,9 @@ variable "service_type" {
     error_message = "service_type must be either 'backend' or 'renderer'."
   }
 }
+
+variable "container_env_vars" {
+  description = "Environment variables to pass to the container"
+  type        = map(string)
+  default     = {}
+}

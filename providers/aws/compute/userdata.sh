@@ -79,15 +79,32 @@ fetch_ssm_parameters() {
   log "Environment file created at /etc/app.env"
 }
 
+write_container_env_vars() {
+  if [ -n "$container_env_vars" ]; then
+    log "Writing container env vars..."
+    > /etc/container_env
+    echo "$container_env_vars" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' >> /etc/container_env
+    log "Container env vars written to /etc/container_env"
+  fi
+}
+
 start_backend_service() {
   log "Starting backend service..."
   
   docker pull ghcr.io/bit-apps-pro/paymentform-backend:latest
   
+  CONTAINER_ENV_FLAGS=""
+  if [ -f /etc/container_env ]; then
+    while IFS='=' read -r key value; do
+      CONTAINER_ENV_FLAGS="$${CONTAINER_ENV_FLAGS} -e ${key}=${value}"
+    done < /etc/container_env
+  fi
+  
   docker run -d \
     --name paymentform-backend \
     --restart unless-stopped \
     --env-file /etc/app.env \
+    $${CONTAINER_ENV_FLAGS} \
     -e "APP_DOMAIN=api.$${environment}.paymentform.io" \
     -e "ENVIRONMENT=production" \
     -p 80:80 \
@@ -127,6 +144,7 @@ main() {
   create_volumes
   authenticate_ghcr
   fetch_ssm_parameters
+  write_container_env_vars
   
   if [ "$${service_type}" = "backend" ]; then
     start_backend_service
