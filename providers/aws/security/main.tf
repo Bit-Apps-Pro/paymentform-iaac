@@ -101,6 +101,141 @@ resource "aws_security_group_rule" "db_egress_all" {
   description       = "Allow all outbound traffic"
 }
 
+# Self-managed PostgreSQL Security Group - For EC2-based PostgreSQL
+resource "aws_security_group" "postgresql" {
+  name_prefix = "${var.environment}-postgresql-sg"
+  vpc_id      = var.vpc_id
+
+  tags = merge(
+    var.standard_tags,
+    {
+      Name = "${var.environment}-postgresql-security-group"
+    }
+  )
+}
+
+# Inbound rules for PostgreSQL - allow from ECS and within itself for replication
+resource "aws_security_group_rule" "postgresql_ingress_from_ecs" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.ecs.id
+  security_group_id        = aws_security_group.postgresql.id
+  description              = "Allow PostgreSQL traffic from ECS"
+}
+
+resource "aws_security_group_rule" "postgresql_ingress_from_self" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.postgresql.id
+  security_group_id        = aws_security_group.postgresql.id
+  description              = "Allow PostgreSQL replication between instances"
+}
+
+# Outbound rules for PostgreSQL
+resource "aws_security_group_rule" "postgresql_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.postgresql.id
+  description       = "Allow all outbound traffic"
+}
+
+# Cross-region PostgreSQL replication
+resource "aws_security_group_rule" "postgresql_ingress_cross_region" {
+  count             = var.allow_cross_region ? length(var.cross_region_vpc_cidrs) : 0
+  type              = "ingress"
+  from_port         = 5432
+  to_port           = 5432
+  protocol          = "tcp"
+  cidr_blocks       = [var.cross_region_vpc_cidrs[count.index]]
+  security_group_id = aws_security_group.postgresql.id
+  description       = "Allow PostgreSQL replication from cross-region VPC"
+}
+
+# Cross-region Valkey
+resource "aws_security_group_rule" "valkey_ingress_cross_region" {
+  count             = var.allow_cross_region ? length(var.cross_region_vpc_cidrs) : 0
+  type              = "ingress"
+  from_port         = 6379
+  to_port           = 6379
+  protocol          = "tcp"
+  cidr_blocks       = [var.cross_region_vpc_cidrs[count.index]]
+  security_group_id = aws_security_group.valkey.id
+  description       = "Allow Valkey from cross-region VPC"
+}
+
+resource "aws_security_group_rule" "valkey_cluster_bus_cross_region" {
+  count             = var.allow_cross_region ? length(var.cross_region_vpc_cidrs) : 0
+  type              = "ingress"
+  from_port         = 16379
+  to_port           = 16379
+  protocol          = "tcp"
+  cidr_blocks       = [var.cross_region_vpc_cidrs[count.index]]
+  security_group_id = aws_security_group.valkey.id
+  description       = "Allow Valkey cluster bus from cross-region VPC"
+}
+
+# Valkey/Redis Security Group - For EC2-based Valkey cluster
+resource "aws_security_group" "valkey" {
+  name_prefix = "${var.environment}-valkey-sg"
+  vpc_id      = var.vpc_id
+
+  tags = merge(
+    var.standard_tags,
+    {
+      Name = "${var.environment}-valkey-security-group"
+    }
+  )
+}
+
+# Inbound rules for Valkey - allow from ECS and within itself for cluster
+resource "aws_security_group_rule" "valkey_ingress_from_ecs" {
+  type                     = "ingress"
+  from_port                = 6379
+  to_port                  = 6379
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.ecs.id
+  security_group_id        = aws_security_group.valkey.id
+  description              = "Allow Valkey traffic from ECS"
+}
+
+resource "aws_security_group_rule" "valkey_ingress_from_self" {
+  type                     = "ingress"
+  from_port                = 6379
+  to_port                  = 6379
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.valkey.id
+  security_group_id        = aws_security_group.valkey.id
+  description              = "Allow Valkey cluster communication"
+}
+
+resource "aws_security_group_rule" "valkey_ingress_cluster_bus_from_self" {
+  type                     = "ingress"
+  from_port                = 16379
+  to_port                  = 16379
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.valkey.id
+  security_group_id        = aws_security_group.valkey.id
+  description              = "Allow Valkey cluster bus communication"
+}
+
+# Outbound rules for Valkey
+resource "aws_security_group_rule" "valkey_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.valkey.id
+  description       = "Allow all outbound traffic"
+}
+
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "${var.environment}-ecs-task-execution-role"

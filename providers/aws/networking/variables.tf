@@ -1,12 +1,18 @@
+variable "environment" {
+  description = "Environment name (dev, sandbox, prod)"
+  type        = string
+}
+
+variable "region" {
+  description = "AWS region (e.g., us-east-1, eu-west-1)"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
   default     = "10.0.0.0/16"
-}
-
-variable "environment" {
-  description = "Environment name (dev, sandbox, prod)"
-  type        = string
 }
 
 variable "standard_tags" {
@@ -26,4 +32,3 @@ variable "public_subnet_cidrs" {
   type        = list(string)
   default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 }
-

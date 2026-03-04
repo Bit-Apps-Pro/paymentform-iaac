@@ -25,6 +25,16 @@ output "ssl_config_bucket_id" {
   value       = var.r2_ssl_bucket_enabled ? cloudflare_r2_bucket.ssl_config[0].id : null
 }
 
+output "backup_bucket_name" {
+  description = "Name of the backup bucket for pgbackrest"
+  value       = var.r2_backup_bucket_name != "" ? cloudflare_r2_bucket.backup[0].name : null
+}
+
+output "backup_bucket_domain" {
+  description = "R2 bucket domain for backup bucket"
+  value       = var.r2_backup_bucket_name != "" ? "${cloudflare_r2_bucket.backup[0].name}.r2.cloudflarestorage.com" : null
+}
+
 output "r2_endpoint" {
   description = "R2 S3-compatible endpoint URL"
   value       = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"

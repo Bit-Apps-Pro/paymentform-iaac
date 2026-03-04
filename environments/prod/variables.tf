@@ -182,3 +182,46 @@ variable "stripe_connect_webhook_secret" {
   type      = string
   sensitive = true
 }
+
+# Multi-Region Configuration
+variable "primary_region" {
+  description = "Primary AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "dr_region" {
+  description = "DR AWS region"
+  type        = string
+  default     = "eu-west-1"
+}
+
+variable "postgres_ami_id" {
+  description = "AMI ID for PostgreSQL instances"
+  type        = string
+  default     = ""
+}
+
+variable "valkey_ami_id" {
+  description = "AMI ID for Valkey instances"
+  type        = string
+  default     = ""
+}
+
+variable "r2_backup_access_key" {
+  description = "R2 access key for pgbackrest backups"
+  type        = string
+  sensitive   = true
+}
+
+variable "r2_backup_secret_key" {
+  description = "R2 secret key for pgbackrest backups"
+  type        = string
+  sensitive   = true
+}
+
+variable "pgbackrest_cipher_pass" {
+  description = "Encryption password for pgbackrest"
+  type        = string
+  sensitive   = true
+}

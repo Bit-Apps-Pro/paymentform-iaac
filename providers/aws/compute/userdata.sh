@@ -96,7 +96,7 @@ start_backend_service() {
   CONTAINER_ENV_FLAGS=""
   if [ -f /etc/container_env ]; then
     while IFS='=' read -r key value; do
-      CONTAINER_ENV_FLAGS="$${CONTAINER_ENV_FLAGS} -e ${key}=${value}"
+      CONTAINER_ENV_FLAGS="$${CONTAINER_ENV_FLAGS} -e $${key}=$${value}"
     done < /etc/container_env
   fi
   

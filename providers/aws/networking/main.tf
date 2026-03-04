@@ -37,7 +37,7 @@ resource "aws_internet_gateway" "main" {
   )
 }
 
-# Public Subnets — EC2 instances sit here, Cloudflare proxies inbound traffic
+# Public Subnets — All resources (EC2, PostgreSQL, Valkey) sit here
 resource "aws_subnet" "public" {
   count                   = length(var.availability_zones)
   vpc_id                  = aws_vpc.main.id

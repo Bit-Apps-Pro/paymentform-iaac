@@ -42,9 +42,10 @@ module "aws_networking" {
   source = "../../providers/aws/networking"
 
   environment         = "sandbox"
+  region              = "us-east-1"
   vpc_cidr            = "10.0.0.0/16"
-  availability_zones  = ["us-east-1a", "us-east-1b"]
-  public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+  availability_zones  = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
   standard_tags       = local.standard_tags
 }
 
@@ -56,6 +57,56 @@ module "aws_security" {
   app_ports              = [80, 443, 8000, 3000]
   enable_strict_security = false
   standard_tags          = local.standard_tags
+}
+
+module "aws_database" {
+  source = "../../providers/aws/database"
+
+  environment       = "sandbox"
+  ami_id            = var.postgres_ami_id
+  subnet_ids        = module.aws_networking.public_subnet_ids
+  security_group_id = module.aws_security.postgresql_security_group_id
+
+  primary_instance_type = "t4g.micro"
+  replica_instance_type = "t4g.micro"
+  primary_volume_size   = 20
+  replica_volume_size   = 20
+  volume_type           = "gp3"
+
+  enable_replica   = true
+  postgres_version = "16"
+  db_name          = var.db_database
+  db_user          = var.db_username
+  db_password      = var.db_password
+
+  r2_endpoint            = "https://paymentform-backups-sandbox.r2.cloudflarestorage.com"
+  r2_bucket_name         = "paymentform-backups-sandbox"
+  r2_access_key          = var.r2_backup_access_key
+  r2_secret_key          = var.r2_backup_secret_key
+  pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
+
+  standard_tags = local.standard_tags
+  region        = "us-east-1"
+  assign_eip    = true
+}
+
+module "aws_valkey" {
+  source = "../../providers/aws/valkey"
+
+  environment       = "sandbox"
+  ami_id            = var.valkey_ami_id
+  subnet_ids        = module.aws_networking.public_subnet_ids
+  security_group_id = module.aws_security.valkey_security_group_id
+
+  instance_type = "t4g.micro"
+  node_count    = 2
+  volume_size   = 20
+  volume_type   = "gp3"
+
+  cluster_password = var.redis_password
+  memory_max       = "256mb"
+
+  standard_tags = local.standard_tags
 }
 
 module "aws_compute_backend" {
@@ -93,19 +144,19 @@ module "aws_compute_backend" {
     APP_KEY           = var.app_key
     APP_DEBUG         = "false"
 
-    APP_LOCALE          = en
-    APP_FALLBACK_LOCALE = en
+    APP_LOCALE          = "en"
+    APP_FALLBACK_LOCALE = "en"
 
     BCRYPT_ROUNDS = 12
 
-    LOG_CHANNEL              = stack
-    LOG_STACK                = single
+    LOG_CHANNEL              = "stack"
+    LOG_STACK                = "single"
     LOG_DEPRECATIONS_CHANNEL = null
-    LOG_LEVEL                = error
+    LOG_LEVEL                = "error"
 
     DB_CONNECTION = "pgsql"
-    DB_HOST       = var.db_host
-    DB_PORT       = var.db_port
+    DB_HOST       = module.aws_database.primary_endpoint
+    DB_PORT       = 5432
     DB_DATABASE   = var.db_database
     DB_USERNAME   = var.db_username
     DB_PASSWORD   = var.db_password
@@ -127,9 +178,9 @@ module "aws_compute_backend" {
     CACHE_STORE          = "database"
 
 
-    REDIS_CLIENT   = phpredis
-    REDIS_HOST     = var.redis_host
-    REDIS_PORT     = var.redis_port
+    REDIS_CLIENT   = "phpredis"
+    REDIS_HOST     = module.aws_valkey.primary_endpoint
+    REDIS_PORT     = 6379
     REDIS_PASSWORD = var.redis_password
 
     MAIL_MAILER       = "smtp"
@@ -141,10 +192,10 @@ module "aws_compute_backend" {
     AWS_ACCESS_KEY_ID           = var.aws_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
     AWS_DEFAULT_REGION          = "us-east-1"
-    AWS_BUCKET                  = "paymentform-uploads"
+    AWS_BUCKET                  = "paymentform-uploads-sandbox"
     AWS_USE_PATH_STYLE_ENDPOINT = true
-    AWS_ENDPOINT                = "https://paymentform-uploads.r2.cloudflarestorage.com"
-    AWS_CLOUDFRONT_URL          = "https://paymentform-uploads.r2.cloudflarestorage.com"
+    AWS_ENDPOINT                = "https://paymentform-uploads-sandbox.r2.cloudflarestorage.com"
+    AWS_CLOUDFRONT_URL          = "https://paymentform-uploads-sandbox.r2.cloudflarestorage.com"
 
     CORS_ALLOWED_ORIGINS = "https://app.sandbox.paymentform.io"
     CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
@@ -207,9 +258,10 @@ module "cloudflare_r2" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
 
-  r2_bucket_name        = "paymentform-uploads"
+  r2_bucket_name        = "paymentform-uploads-sandbox"
   r2_public_bucket_name = ""
   r2_ssl_bucket_name    = "paymentform-ssl-config"
+  r2_backup_bucket_name = "paymentform-backups-sandbox"
 
   cors_allowed_origins    = ["*"]
   lifecycle_rules_enabled = true
@@ -340,19 +392,19 @@ module "cloudflare_container_backend" {
     APP_KEY           = var.app_key
     APP_DEBUG         = "false"
 
-    APP_LOCALE          = en
-    APP_FALLBACK_LOCALE = en
+    APP_LOCALE          = "en"
+    APP_FALLBACK_LOCALE = "en"
 
     BCRYPT_ROUNDS = 12
 
-    LOG_CHANNEL              = stack
-    LOG_STACK                = single
+    LOG_CHANNEL              = "stack"
+    LOG_STACK                = "single"
     LOG_DEPRECATIONS_CHANNEL = null
-    LOG_LEVEL                = error
+    LOG_LEVEL                = "error"
 
     DB_CONNECTION = "pgsql"
-    DB_HOST       = var.db_host
-    DB_PORT       = var.db_port
+    DB_HOST       = module.aws_database.primary_endpoint
+    DB_PORT       = 5432
     DB_DATABASE   = var.db_database
     DB_USERNAME   = var.db_username
     DB_PASSWORD   = var.db_password
@@ -374,9 +426,9 @@ module "cloudflare_container_backend" {
     CACHE_STORE          = "database"
 
 
-    REDIS_CLIENT   = phpredis
-    REDIS_HOST     = var.redis_host
-    REDIS_PORT     = var.redis_port
+    REDIS_CLIENT   = "phpredis"
+    REDIS_HOST     = module.aws_valkey.primary_endpoint
+    REDIS_PORT     = 6379
     REDIS_PASSWORD = var.redis_password
 
     MAIL_MAILER       = "smtp"
@@ -388,10 +440,10 @@ module "cloudflare_container_backend" {
     AWS_ACCESS_KEY_ID           = var.aws_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
     AWS_DEFAULT_REGION          = "us-east-1"
-    AWS_BUCKET                  = "paymentform-uploads"
+    AWS_BUCKET                  = "paymentform-uploads-sandbox"
     AWS_USE_PATH_STYLE_ENDPOINT = true
-    AWS_ENDPOINT                = "https://paymentform-uploads.r2.cloudflarestorage.com"
-    AWS_CLOUDFRONT_URL          = "https://paymentform-uploads.r2.cloudflarestorage.com"
+    AWS_ENDPOINT                = "https://paymentform-uploads-sandbox.r2.cloudflarestorage.com"
+    AWS_CLOUDFRONT_URL          = "https://paymentform-uploads-sandbox.r2.cloudflarestorage.com"
 
     CORS_ALLOWED_ORIGINS = "https://app.sandbox.paymentform.io"
     CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
@@ -486,4 +538,19 @@ output "r2_bucket_name" {
 
 output "ssl_config_bucket_name" {
   value = module.cloudflare_r2.ssl_config_bucket_name
+}
+
+output "postgresql_primary_endpoint" {
+  description = "PostgreSQL primary endpoint"
+  value       = module.aws_database.primary_endpoint
+}
+
+output "postgresql_replica_endpoint" {
+  description = "PostgreSQL replica endpoint"
+  value       = module.aws_database.replica_endpoint
+}
+
+output "valkey_cluster_endpoints" {
+  description = "Valkey cluster endpoints"
+  value       = module.aws_valkey.cluster_endpoints
 }

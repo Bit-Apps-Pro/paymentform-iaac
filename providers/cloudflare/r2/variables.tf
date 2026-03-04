@@ -52,6 +52,12 @@ variable "r2_ssl_bucket_enabled" {
   default     = true
 }
 
+variable "r2_backup_bucket_name" {
+  description = "Name of the R2 bucket for database backups (pgbackrest)"
+  type        = string
+  default     = ""
+}
+
 # CORS Configuration
 variable "cors_allowed_origins" {
   description = "List of allowed origins for CORS configuration"

@@ -17,9 +17,10 @@ provider "cloudflare" {
 }
 
 locals {
-  app_storage_bucket_name    = "${var.environment}-${var.r2_bucket_name}"
-  public_bucket_name         = var.r2_public_bucket_name != "" ? "${var.environment}-${var.r2_public_bucket_name}" : null
-  ssl_config_bucket_name     = "${var.environment}-${var.r2_ssl_bucket_name}"
+  app_storage_bucket_name = "${var.environment}-${var.r2_bucket_name}"
+  public_bucket_name      = var.r2_public_bucket_name != "" ? "${var.environment}-${var.r2_public_bucket_name}" : null
+  ssl_config_bucket_name  = "${var.environment}-${var.r2_ssl_bucket_name}"
+  backup_bucket_name      = var.r2_backup_bucket_name != "" ? "${var.environment}-${var.r2_backup_bucket_name}" : null
 }
 
 # Application Storage Bucket (private files)
@@ -51,6 +52,18 @@ resource "cloudflare_r2_bucket" "ssl_config" {
 
   account_id = var.cloudflare_account_id
   name       = local.ssl_config_bucket_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Backup Bucket for pgbackrest
+resource "cloudflare_r2_bucket" "backup" {
+  count = var.r2_backup_bucket_name != "" ? 1 : 0
+
+  account_id = var.cloudflare_account_id
+  name       = local.backup_bucket_name
 
   lifecycle {
     prevent_destroy = true

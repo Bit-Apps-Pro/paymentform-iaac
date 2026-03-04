@@ -8,6 +8,16 @@ output "database_security_group_id" {
   value       = aws_security_group.database.id
 }
 
+output "postgresql_security_group_id" {
+  description = "ID of the PostgreSQL security group (for self-managed EC2)"
+  value       = aws_security_group.postgresql.id
+}
+
+output "valkey_security_group_id" {
+  description = "ID of the Valkey security group (for self-managed EC2)"
+  value       = aws_security_group.valkey.id
+}
+
 output "ecs_task_execution_role_arn" {
   description = "ARN of the ECS task execution role"
   value       = aws_iam_role.ecs_task_execution_role.arn

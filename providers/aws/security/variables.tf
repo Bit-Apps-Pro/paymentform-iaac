@@ -55,3 +55,15 @@ variable "ssh_allowed_cidrs" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
+
+variable "allow_cross_region" {
+  description = "Allow cross-region traffic for DR replication"
+  type        = bool
+  default     = false
+}
+
+variable "cross_region_vpc_cidrs" {
+  description = "List of cross-region VPC CIDRs for replication (e.g., [\"10.1.0.0/16\"])"
+  type        = list(string)
+  default     = []
+}
