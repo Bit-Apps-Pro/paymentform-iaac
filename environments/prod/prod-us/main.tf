@@ -138,6 +138,7 @@ module "aws_compute_backend" {
   enable_pgbouncer          = true
   db_name                   = var.db_database
   db_password               = var.db_password
+  container_image_tag        = var.backend_container_image
   db_read_replica_hosts     = concat(
     [module.aws_database.primary_endpoint],
     var.db_read_replica_endpoints

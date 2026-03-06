@@ -46,6 +46,11 @@ variable "client_container_image" {
   default = "ghcr.io/bit-apps-pro/paymentform-client:latest"
 }
 
+variable "backend_container_image" {
+  type    = string
+  default = "ghcr.io/bit-apps-pro/paymentform-backend:latest"
+}
+
 variable "renderer_container_image" {
   type    = string
   default = "ghcr.io/bit-apps-pro/paymentform-renderer:latest"

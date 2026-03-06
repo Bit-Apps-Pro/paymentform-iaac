@@ -10,7 +10,8 @@
 	build-local push-to-ecr local-deploy \
 	cost-estimate cost-estimate-all \
 	security-checkov security-tfsec security-full \
-	install-tools
+	install-tools \
+	update-backend update-client update-renderer update-all
 
 # ============================================================================
 # Configuration
@@ -19,6 +20,15 @@
 ENV ?= sandbox
 REGION ?= us-east-1
 AWS_PROFILE ?= default
+IMAGE_TAG ?= latest
+
+# Map region to environment folder
+ENV_DIR = $(shell if [ "$(ENV)" = "prod" ]; then \
+	if [ "$(REGION)" = "us-east-1" ] || [ "$(REGION)" = "" ]; then echo "prod-us"; \
+	elif [ "$(REGION)" = "eu-west-1" ]; then echo "prod-eu"; \
+	elif [ "$(REGION)" = "ap-southeast-1" ]; then echo "prod-au"; \
+	else echo "prod-us"; fi; \
+else echo "$(ENV)"; fi)
 
 export AWS_PROFILE
 
@@ -48,6 +58,12 @@ help:
 	@echo "  sandbox       Plan for sandbox environment"
 	@echo "  prod          Plan for prod environment"
 	@echo ""
+	@echo "Container Image Update:"
+	@echo "  update-backend    Update backend container image"
+	@echo "  update-client     Update client container image"
+	@echo "  update-renderer  Update renderer container image"
+	@echo "  update-all       Update all container images"
+	@echo ""
 	@echo "Container Build & Deploy:"
 	@echo "  build-local       Build container images locally"
 	@echo "  push-to-ecr       Push images to ECR"
@@ -66,6 +82,8 @@ help:
 	@echo "  make init ENV=sandbox"
 	@echo "  make plan ENV=prod"
 	@echo "  make apply ENV=dev"
+	@echo "  make update-all ENV=prod IMAGE_TAG=v1.2.3"
+	@echo "  make update-backend ENV=prod IMAGE_TAG=latest"
 	@echo "  make cost-estimate ENV=sandbox"
 	@echo "  make security-full"
 
@@ -74,29 +92,29 @@ help:
 # ============================================================================
 
 init:
-	@echo "🚀 Initializing OpenTofu for $(ENV)..."
-	@cd environments/$(ENV) && tofu init
+	@echo "🚀 Initializing OpenTofu for $(ENV) ($(REGION))..."
+	@cd environments/$(ENV)/$(ENV_DIR) && tofu init
 
 plan:
-	@echo "📋 Planning $(ENV) environment..."
-	@cd environments/$(ENV) && \
+	@echo "📋 Planning $(ENV) ($(REGION)) environment..."
+	@cd environments/$(ENV)/$(ENV_DIR) && \
 		tofu plan -out=tfplan
 
 apply:
-	@echo "✅ Applying $(ENV) environment..."
-	@cd environments/$(ENV) && \
+	@echo "✅ Applying $(ENV) ($(REGION)) environment..."
+	@cd environments/$(ENV)/$(ENV_DIR) && \
 		tofu apply tfplan
 
 destroy:
-	@echo "⚠️  WARNING: Destroying $(ENV) environment"
+	@echo "⚠️  WARNING: Destroying $(ENV) ($(REGION)) environment"
 	@echo "Press Ctrl+C to cancel, or wait 5 seconds..."
 	@sleep 5
-	@cd environments/$(ENV) && \
+	@cd environments/$(ENV)/$(ENV_DIR) && \
 		tofu destroy -auto-approve
 
 validate:
 	@echo "✓ Validating configuration..."
-	@cd environments/$(ENV) && tofu validate
+	@cd environments/$(ENV)/$(ENV_DIR) && tofu validate
 
 fmt:
 	@echo "📝 Formatting .tf files..."
@@ -110,16 +128,16 @@ clean:
 	@echo "✓ Cleanup complete"
 
 output:
-	@echo "📊 Outputs for $(ENV):"
-	@cd environments/$(ENV) && tofu output
+	@echo "📊 Outputs for $(ENV) ($(REGION)):"
+	@cd environments/$(ENV)/$(ENV_DIR) && tofu output
 
 state-list:
 	@echo "📋 Resources in state:"
-	@cd environments/$(ENV) && tofu state list
+	@cd environments/$(ENV)/$(ENV_DIR) && tofu state list
 
 refresh:
-	@echo "🔄 Refreshing state for $(ENV)..."
-	@cd environments/$(ENV) && tofu refresh
+	@echo "🔄 Refreshing state for $(ENV) ($(REGION))..."
+	@cd environments/$(ENV)/$(ENV_DIR) && tofu refresh
 
 # ============================================================================
 # Environment Shortcuts
@@ -236,3 +254,31 @@ quick-start: validate
 	@echo "  3. make apply ENV=$(ENV)"
 
 .DEFAULT_GOAL := help
+
+# ============================================================================
+# Container Image Update
+# ============================================================================
+
+update-backend:
+	@echo "🔄 Updating backend container image to $(IMAGE_TAG) for $(ENV) ($(REGION))..."
+	@cd environments/$(ENV)/$(ENV_DIR) && \
+		tofu apply -var="backend_container_image=$(IMAGE_TAG)" -auto-approve
+
+update-client:
+	@echo "🔄 Updating client container image to $(IMAGE_TAG) for $(ENV) ($(REGION))..."
+	@cd environments/$(ENV)/$(ENV_DIR) && \
+		tofu apply -var="client_container_image=$(IMAGE_TAG)" -auto-approve
+
+update-renderer:
+	@echo "🔄 Updating renderer container image to $(IMAGE_TAG) for $(ENV) ($(REGION))..."
+	@cd environments/$(ENV)/$(ENV_DIR) && \
+		tofu apply -var="renderer_container_image=$(IMAGE_TAG)" -auto-approve
+
+update-all:
+	@echo "🔄 Updating all container images to $(IMAGE_TAG) for $(ENV) ($(REGION))..."
+	@cd environments/$(ENV)/$(ENV_DIR) && \
+		tofu apply \
+			-var="backend_container_image=$(IMAGE_TAG)" \
+			-var="client_container_image=$(IMAGE_TAG)" \
+			-var="renderer_container_image=$(IMAGE_TAG)" \
+			-auto-approve
