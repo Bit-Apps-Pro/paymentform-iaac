@@ -135,10 +135,10 @@ module "aws_compute_backend" {
   region                     = local.region
   bucket_name                = module.cloudflare_r2.application_storage_bucket_name
   service_type               = "backend"
-  enable_pgbouncer          = true
-  db_name                   = var.db_database
-  db_password               = var.db_password
-  db_read_replica_hosts     = concat(
+  enable_pgbouncer           = true
+  db_name                    = var.db_database
+  db_password                = var.db_password
+  db_read_replica_hosts = concat(
     [module.aws_database.primary_endpoint],
     var.db_read_replica_endpoints
   )

@@ -13,9 +13,13 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-# NOTE: R2 buckets and Worker resources have been moved into submodules:
-# - application-storage
-# - public-files
-# - ssl-config
-# - cdn-worker
-# This root module now only declares provider configuration.
+resource "cloudflare_r2_bucket" "ssl_config" {
+  count = var.enabled ? 1 : 0
+
+  account_id = var.cloudflare_account_id
+  name       = "${var.environment}-${var.r2_bucket_name}"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

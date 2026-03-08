@@ -45,7 +45,6 @@ resource "aws_security_group_rule" "ecs_ingress_https" {
 
 # Allow HTTP/HTTPS from ALB security group
 resource "aws_security_group_rule" "ecs_ingress_from_alb" {
-  count                    = var.alb_security_group_id != "" ? 1 : 0
   type                     = "ingress"
   from_port                = 80
   to_port                  = 443
@@ -306,6 +305,7 @@ resource "aws_iam_role" "ecs_task_role" {
 
 # Policy for accessing Secrets Manager (Neon API key, Turso token)
 resource "aws_iam_policy" "secrets_manager_access" {
+  count = var.neon_api_key_secret_arn != "" || var.turso_token_secret_arn != "" ? 1 : 0
   name        = "${var.environment}-secrets-manager-access-policy"
   description = "Policy for accessing secrets in Secrets Manager"
 
@@ -319,18 +319,18 @@ resource "aws_iam_policy" "secrets_manager_access" {
           "secretsmanager:DescribeSecret"
         ]
         Resource = [
-          var.neon_api_key_secret_arn,
-          var.turso_token_secret_arn
+          var.neon_api_key_secret_arn != "" ? var.neon_api_key_secret_arn : "*",
+          var.turso_token_secret_arn != "" ? var.turso_token_secret_arn : "*"
         ]
       }
     ]
   })
 }
 
-# Attach secrets manager policy to ECS task role
 resource "aws_iam_role_policy_attachment" "secrets_manager_policy_attachment" {
+  count = var.neon_api_key_secret_arn != "" || var.turso_token_secret_arn != "" ? 1 : 0
   role       = aws_iam_role.ecs_task_role.name
-  policy_arn = aws_iam_policy.secrets_manager_access.arn
+  policy_arn = aws_iam_policy.secrets_manager_access[0].arn
 }
 
 # Policy for CloudWatch logs

@@ -39,38 +39,46 @@ resource "aws_eip_association" "primary" {
 
 # Dynamic volume creation (only if volume_ids not provided)
 module "volumes" {
-  source = "../../volume"
+  source = "../volume"
 
   for_each = local.use_external_volumes ? {} : local.volumes
 
-  environment        = var.environment
-  name               = each.value.name
-  availability_zone  = each.value.availability_zone
-  size               = each.value.size
-  volume_type        = each.value.volume_type
-  encrypted          = each.value.encrypted
-  iops               = each.value.iops
-  throughput         = each.value.throughput
-  device_name        = each.value.device_name
-  instance_id        = ""
-  standard_tags      = var.standard_tags
-  prevent_destroy    = each.value.prevent_destroy
+  environment       = var.environment
+  name              = each.value.name
+  availability_zone = each.value.availability_zone
+  size              = each.value.size
+  volume_type       = each.value.volume_type
+  encrypted         = each.value.encrypted
+  iops              = each.value.iops
+  throughput        = each.value.throughput
+  device_name       = each.value.device_name
+  instance_id       = ""
+  standard_tags     = var.standard_tags
+  prevent_destroy   = each.value.prevent_destroy
 }
 
-# Volume attachments - primary data volume
+# Volume attachments - using for_each instead of count for deterministic iteration
 resource "aws_volume_attachment" "primary_data" {
-  count    = try(length([for v in var.volumes : v if v.name == "postgresql-primary-data"]), 0) > 0 || lookup(var.volume_ids, "postgresql-primary-data", "") != "" ? 1 : 0
+  for_each    = local.use_external_volumes ? { "postgresql-primary-data" = var.volume_ids["postgresql-primary-data"] } : {}
   device_name = "/dev/sdf"
-  volume_id   = local.use_external_volumes ? var.volume_ids["postgresql-primary-data"] : module.volumes["postgresql-primary-data"].volume_id
+  volume_id   = each.value
   instance_id = aws_instance.postgresql_primary.id
+
+  depends_on = [
+    aws_instance.postgresql_primary
+  ]
 }
 
 # Volume attachments - replica data volume
 resource "aws_volume_attachment" "replica_data" {
-  count    = var.enable_replica ? (try(length([for v in var.volumes : v if v.name == "postgresql-replica-data"]), 0) > 0 || lookup(var.volume_ids, "postgresql-replica-data", "") != "" ? 1 : 0) : 0
+  for_each    = var.enable_replica && local.use_external_volumes ? { "postgresql-replica-data" = var.volume_ids["postgresql-replica-data"] } : {}
   device_name = "/dev/sdf"
-  volume_id   = local.use_external_volumes ? var.volume_ids["postgresql-replica-data"] : module.volumes["postgresql-replica-data"].volume_id
+  volume_id   = each.value
   instance_id = aws_instance.postgresql_replica[0].id
+
+  depends_on = [
+    aws_instance.postgresql_replica
+  ]
 }
 
 # EC2 Instance for PostgreSQL Primary
@@ -114,9 +122,10 @@ resource "aws_instance" "postgresql_primary" {
     pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
     region                 = var.region
     data_volume_device     = "/dev/sdf"
+    DATA_VOLUME            = "/dev/sdf"
+    MOUNT_POINT            = "/mnt/postgresql"
+    PGDATA_DIR             = "/mnt/postgresql/data"
   }))
-
-  depends_on = [aws_volume_attachment.primary_data]
 }
 
 # EC2 Instance for PostgreSQL Replica
@@ -147,15 +156,17 @@ resource "aws_instance" "postgresql_replica" {
   )
 
   user_data = base64encode(templatefile("${path.module}/userdata-replica.sh", {
-    environment         = var.environment
-    postgres_version    = var.postgres_version
-    primary_ip          = aws_instance.postgresql_primary.private_ip
-    db_user             = var.db_user
-    db_password         = var.db_password
-    data_volume_device  = "/dev/sdf"
+    environment        = var.environment
+    postgres_version   = var.postgres_version
+    primary_ip         = aws_instance.postgresql_primary.private_ip
+    db_user            = var.db_user
+    db_password        = var.db_password
+    data_volume_device = "/dev/sdf"
+    DATA_VOLUME        = "/dev/sdf"
+    MOUNT_POINT        = "/mnt/postgresql"
   }))
 
-  depends_on = [aws_instance.postgresql_primary, aws_volume_attachment.replica_data]
+  depends_on = [aws_instance.postgresql_primary]
 }
 
 # IAM Role for EC2 to access S3/R2 for pgbackrest
@@ -216,10 +227,10 @@ resource "aws_iam_role_policy_attachment" "pgbackrest_s3_attachment" {
 
 # Cross-region Read Replica
 resource "aws_instance" "postgresql_cross_region_replica" {
-  count                = var.enable_cross_region_replica ? 1 : 0
-  ami                  = var.ami_id
-  instance_type        = var.replica_instance_type
-  subnet_id            = var.replica_subnet_ids[0]
+  count         = var.enable_cross_region_replica ? 1 : 0
+  ami           = var.ami_id
+  instance_type = var.replica_instance_type
+  subnet_id     = var.replica_subnet_ids[0]
 
   vpc_security_group_ids = [
     var.security_group_id
@@ -240,26 +251,16 @@ resource "aws_instance" "postgresql_cross_region_replica" {
   )
 
   user_data = base64encode(templatefile("${path.module}/userdata-replica.sh", {
-    environment         = var.environment
-    postgres_version    = var.postgres_version
-    primary_ip          = aws_instance.postgresql_primary.private_ip
-    db_user             = var.db_user
-    db_password         = var.db_password
-    data_volume_device  = "/dev/sdf"
+    environment        = var.environment
+    postgres_version   = var.postgres_version
+    primary_ip         = aws_instance.postgresql_primary.private_ip
+    db_user            = var.db_user
+    db_password        = var.db_password
+    data_volume_device = "/dev/sdf"
+    DATA_VOLUME        = "/dev/sdf"
+    MOUNT_POINT        = "/mnt/postgresql"
   }))
 
   depends_on = [aws_instance.postgresql_primary]
 }
 
-# Outputs
-output "primary_instance_id" {
-  value = aws_instance.postgresql_primary.id
-}
-
-output "replica_instance_id" {
-  value = aws_instance.postgresql_replica[*].id
-}
-
-output "volume_ids" {
-  value = local.use_external_volumes ? var.volume_ids : { for k, v in module.volumes : k => v.volume_id }
-}

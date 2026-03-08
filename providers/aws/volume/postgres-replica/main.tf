@@ -11,7 +11,6 @@ locals {
   prefix = var.environment
 }
 
-# EBS Volume
 resource "aws_ebs_volume" "this" {
   availability_zone = var.availability_zone
   size              = var.size
@@ -28,24 +27,13 @@ resource "aws_ebs_volume" "this" {
   )
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true # HARDCODED for data protection
   }
 }
 
-# Volume Attachment (only if instance_id is provided)
 resource "aws_volume_attachment" "this" {
   count       = var.instance_id != "" ? 1 : 0
   device_name = var.device_name
   volume_id   = aws_ebs_volume.this.id
   instance_id = var.instance_id
-}
-
-# Output volume ID
-output "volume_id" {
-  value = aws_ebs_volume.this.id
-}
-
-# Output volume size
-output "volume_size" {
-  value = aws_ebs_volume.this.size
 }

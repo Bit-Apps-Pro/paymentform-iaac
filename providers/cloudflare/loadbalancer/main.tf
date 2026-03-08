@@ -23,6 +23,6 @@ resource "cloudflare_load_balancer" "main" {
   default_pools = var.default_pool_ids
 
   steering_policy = var.steering_policy
-  proxied        = var.proxied
-  ttl            = var.ttl
+  proxied         = var.proxied
+  ttl             = var.ttl
 }

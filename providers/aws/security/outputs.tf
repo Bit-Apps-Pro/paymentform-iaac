@@ -40,7 +40,7 @@ output "ecs_task_role_name" {
 
 output "secrets_manager_access_policy_arn" {
   description = "ARN of the secrets manager access policy"
-  value       = aws_iam_policy.secrets_manager_access.arn
+  value       = try(aws_iam_policy.secrets_manager_access[0].arn, "")
 }
 
 output "cloudwatch_logs_access_policy_arn" {

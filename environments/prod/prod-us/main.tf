@@ -39,7 +39,7 @@ locals {
 # =============================================================================
 # Networking (Shared)
 # =============================================================================
-module "paymentform-networking" {
+module "paymentform_networking" {
   source = "../../../providers/aws/networking"
 
   environment         = "prod-us"
@@ -53,15 +53,17 @@ module "paymentform-networking" {
 # =============================================================================
 # Security (Shared)
 # =============================================================================
-module "paymentform-security" {
+module "paymentform_security" {
   source = "../../../providers/aws/security"
 
+  depends_on = [module.paymentform_alb]
+
   environment            = "prod-us"
-  vpc_id                 = module.networking.vpc_id
+  vpc_id                 = module.paymentform_networking.vpc_id
   app_ports              = [80, 443, 8000, 3000]
   enable_strict_security = true
   standard_tags          = local.standard_tags
-  alb_security_group_id  = module.alb.security_group_id
+  alb_security_group_id  = module.paymentform_alb.security_group_id
 }
 
 # module "paymentform-database" {
@@ -69,8 +71,8 @@ module "paymentform-security" {
 
 #   environment       = "prod-us"
 #   ami_id            = var.postgres_ami_id
-#   subnet_ids        = module.networking.public_subnet_ids
-#   security_group_id = module.security.postgresql_security_group_id
+#   subnet_ids        = module.paymentform_networking.public_subnet_ids
+#   security_group_id = module.paymentform_security.postgresql_security_group_id
 
 #   primary_instance_type = "t4g.small"
 #   replica_instance_type = "t4g.micro"
@@ -98,11 +100,11 @@ module "paymentform-security" {
 # =============================================================================
 # PostgreSQL (Database - Backend Service)
 # =============================================================================
-module "paymentform-postgresql_primary_data_volume" {
-  source = "../../../providers/aws/volume"
+module "postgres_primary_volume" {
+  source = "../../../providers/aws/volume/postgres-primary"
 
   environment       = "prod-us"
-  name              = "postgresql-primary-data"
+  name              = "data"
   availability_zone = "${local.region}a"
   size              = 50
   volume_type       = "gp3"
@@ -112,14 +114,14 @@ module "paymentform-postgresql_primary_data_volume" {
   device_name       = "/dev/sdf"
   instance_id       = ""
   standard_tags     = local.standard_tags
-  prevent_destroy   = true
 }
 
-module "paymentform-postgresql_replica_data_volume" {
-  source = "../../../providers/aws/volume"
+
+module "postgres_replica_volume" {
+  source = "../../../providers/aws/volume/postgres-replica"
 
   environment       = "prod-us"
-  name              = "postgresql-replica-data"
+  name              = "data"
   availability_zone = "${local.region}b"
   size              = 30
   volume_type       = "gp3"
@@ -129,17 +131,22 @@ module "paymentform-postgresql_replica_data_volume" {
   device_name       = "/dev/sdf"
   instance_id       = ""
   standard_tags     = local.standard_tags
-  prevent_destroy   = true
 }
 
+
 # Pass volume IDs to database module (empty volumes list = use volume_ids instead)
-module "paymentform-database" {
+module "postgres_database" {
   source = "../../../providers/aws/database"
+
+  depends_on = [
+    module.postgres_primary_volume,
+    module.postgres_replica_volume
+  ]
 
   environment       = "prod-us"
   ami_id            = var.postgres_ami_id
-  subnet_ids        = module.networking.public_subnet_ids
-  security_group_id = module.security.postgresql_security_group_id
+  subnet_ids        = module.paymentform_networking.public_subnet_ids
+  security_group_id = module.paymentform_security.postgresql_security_group_id
 
   primary_instance_type = "t4g.small"
   replica_instance_type = "t4g.micro"
@@ -166,18 +173,18 @@ module "paymentform-database" {
   # Pass pre-created volume IDs (empty volumes list)
   volumes = []
   volume_ids = {
-    postgresql-primary-data = module.postgresql_primary_data_volume.volume_id
-    postgresql-replica-data = module.postgresql_replica_data_volume.volume_id
+    postgresql-primary-data = module.postgres_primary_volume.volume_id
+    postgresql-replica-data = module.postgres_replica_volume.volume_id
   }
 }
 
-module "paymentform-cache" {
+module "paymentform_cache" {
   source = "../../../providers/aws/valkey"
 
   environment       = "prod-us"
   ami_id            = var.valkey_ami_id
-  subnet_ids        = module.networking.public_subnet_ids
-  security_group_id = module.security.valkey_security_group_id
+  subnet_ids        = module.paymentform_networking.public_subnet_ids
+  security_group_id = module.paymentform_security.valkey_security_group_id
 
   instance_type = "t4g.micro"
   node_count    = 2
@@ -190,14 +197,19 @@ module "paymentform-cache" {
   standard_tags = local.standard_tags
 }
 
-module "paymentform-backend" {
+module "paymentform_backend" {
   source = "../../../providers/aws/compute"
+
+  depends_on = [
+    module.paymentform_alb,
+    module.paymentform_security
+  ]
 
   environment                = "prod-us"
   instance_prefix            = "prod-us-backend"
-  subnet_ids                 = module.networking.public_subnet_ids
+  subnet_ids                 = module.paymentform_networking.public_subnet_ids
   instance_type              = "t4g.small"
-  ami_id                     = ""
+  ami_id                     = "ami-01a1b1a4d93797ddc"
   key_pair_name              = ""
   min_size                   = 1
   max_size                   = 4
@@ -210,17 +222,17 @@ module "paymentform-backend" {
   root_volume_size           = 50
   root_volume_type           = "gp3"
   ecs_cluster_name           = "paymentform-cluster-prod-us"
-  ecs_security_group_id      = module.security.ecs_security_group_id
+  ecs_security_group_id      = module.paymentform_security.ecs_security_group_id
   region                     = local.region
-  bucket_name                = module.storage.application_storage_bucket_name
+  bucket_name                = module.paymentform_storage_application.bucket_name
   service_type               = "backend"
   enable_pgbouncer           = true
   db_name                    = var.db_database
   db_password                = var.db_password
   container_image_tag        = var.backend_container_image
-  alb_target_group_arn       = module.alb.target_group_arn
+  alb_target_group_arn       = module.paymentform_alb.target_group_arn
   db_read_replica_hosts = concat(
-    [module.database.primary_endpoint],
+    [module.postgres_database.primary_endpoint],
     var.db_read_replica_endpoints
   )
 
@@ -256,7 +268,7 @@ module "paymentform-backend" {
     TENANT_TURSO_ORG_SLUG       = var.turso_org_slug
     TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
 
-    SESSION_DRIVER   = "database"
+    SESSION_DRIVER   = "redis"
     SESSION_LIFETIME = 120
     SESSION_ENCRYPT  = false
     SESSION_PATH     = "/"
@@ -264,16 +276,18 @@ module "paymentform-backend" {
 
     BROADCAST_CONNECTION = "log"
     FILESYSTEM_DISK      = "local"
-    QUEUE_CONNECTION     = "database"
-    CACHE_STORE          = "database"
+    QUEUE_CONNECTION     = "redis"
+    CACHE_STORE          = "redis"
 
     REDIS_CLIENT   = "phpredis"
-    REDIS_HOST     = module.cache.primary_endpoint
+    REDIS_HOST     = module.paymentform_cache.primary_endpoint
     REDIS_PORT     = 6379
     REDIS_PASSWORD = var.redis_password
 
     MAIL_MAILER       = "smtp"
-    MAIL_HOST         = "smtp.mailgun.org"
+    MAIL_HOST         = var.mail_host
+    MAIL_USERNAME     = var.mail_username
+    MAIL_PASSWORD     = var.mail_password
     MAIL_PORT         = "587"
     MAIL_FROM_ADDRESS = "hello@paymentform.io"
     MAIL_FROM_NAME    = "Payment Form"
@@ -281,10 +295,10 @@ module "paymentform-backend" {
     AWS_ACCESS_KEY_ID           = var.aws_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.storage.application_storage_bucket_name
+    AWS_BUCKET                  = module.paymentform_storage_application.bucket_name
     AWS_USE_PATH_STYLE_ENDPOINT = true
-    AWS_ENDPOINT                = module.storage.r2_endpoint
-    AWS_CLOUDFRONT_URL          = module.storage.r2_endpoint
+    AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
 
     CORS_ALLOWED_ORIGINS = "https://app.paymentform.io"
     CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
@@ -304,35 +318,46 @@ module "paymentform-backend" {
     STRIPE_REDIRECT_URI           = "https://api.paymentform.io/stripe/callback"
     STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
 
-    KV_STORE_API_URL      = module.kv_store.api_endpoint
+    KV_STORE_API_URL      = module.paymentform_kv_store.api_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
-    KV_STORE_NAMESPACE_ID = module.kv_store.namespace_id
+    KV_STORE_NAMESPACE_ID = module.paymentform_kv_store.namespace_id
   }
 }
 
-module "paymentform-storage" {
-  source = "../../../providers/cloudflare/r2"
+module "paymentform_storage_application" {
+  source = "../../../providers/cloudflare/r2/application-storage"
 
   environment           = "prod-us"
-  resource_prefix       = local.resource_prefix
-  standard_tags         = local.standard_tags
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
-
-  r2_bucket_name        = "prod-paymentform-uploads"
-  r2_public_bucket_name = ""
-  r2_ssl_bucket_name    = "prod-paymentform-ssl-config"
-
-  cors_allowed_origins    = ["https://app.paymentform.io"]
-  lifecycle_rules_enabled = true
-  ssl_cert_retention_days = 30
-
-  worker_enabled       = false
-  worker_route_pattern = ""
-  cloudflare_zone_id   = var.cloudflare_zone_id
+  r2_bucket_name        = "paymentform-uploads"
 }
 
-module "paymentform-kv_store" {
+module "paymentform_storage_ssl_config" {
+  source = "../../../providers/cloudflare/r2/ssl-config"
+
+  environment           = "prod-us"
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  r2_bucket_name        = "paymentform-ssl-config"
+  enabled               = true
+}
+
+module "paymentform_storage_cdn_worker" {
+  source = "../../../providers/cloudflare/r2/cdn-worker"
+
+  environment           = "prod-us"
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  cloudflare_zone_id    = var.cloudflare_zone_id
+
+  worker_enabled          = false
+  worker_route_pattern    = ""
+  cors_allowed_origins    = ["https://app.paymentform.io"]
+  application_bucket_name = module.paymentform_storage_application.bucket_name
+}
+
+module "paymentform_kv_store" {
   source = "../../../providers/cloudflare/kv"
 
   environment           = "prod-us"
@@ -342,15 +367,15 @@ module "paymentform-kv_store" {
   cloudflare_api_token  = var.kv_store_api_token
 
   namespace_name    = "tenants"
-  namespace_enabled = true
+  namespace_enabled = false
 }
 
-module "paymentform-alb" {
+module "paymentform_alb" {
   source = "../../../providers/aws/alb"
 
-  environment = "prod-us"
-  vpc_id      = module.networking.vpc_id
-  subnet_ids  = module.networking.public_subnet_ids
+  environment = "paymentform-prod-us"
+  vpc_id      = module.paymentform_networking.vpc_id
+  subnet_ids  = module.paymentform_networking.public_subnet_ids
 
   target_port                = 80
   health_check_path          = "/health"
@@ -364,35 +389,35 @@ output "region" {
 }
 
 output "alb_dns_name" {
-  value = module.alb.alb_dns_name
+  value = module.paymentform_alb.alb_dns_name
 }
 
 output "alb_zone_id" {
-  value = module.alb.alb_zone_id
+  value = module.paymentform_alb.alb_zone_id
 }
 
 output "instance_ips" {
-  value = module.backend.instance_ips
+  value = module.paymentform_backend.instance_ips
 }
 
 output "database_primary_endpoint" {
-  value = module.database.primary_endpoint
+  value = module.postgres_database.primary_endpoint
 }
 
 output "database_replica_endpoint" {
-  value = module.database.replica_endpoint
+  value = module.postgres_database.replica_endpoint
 }
 
 output "valkey_primary_endpoint" {
-  value = module.cache.primary_endpoint
+  value = module.paymentform_cache.primary_endpoint
 }
 
 output "postgresql_primary_data_volume_id" {
   description = "Volume ID for PostgreSQL primary data"
-  value       = module.postgresql_primary_data_volume.volume_id
+  value       = module.postgres_primary_volume.volume_id
 }
 
 output "postgresql_replica_data_volume_id" {
   description = "Volume ID for PostgreSQL replica data"
-  value       = module.postgresql_replica_data_volume.volume_id
+  value       = module.postgres_replica_volume.volume_id
 }

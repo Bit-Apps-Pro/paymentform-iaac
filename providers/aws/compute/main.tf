@@ -33,7 +33,7 @@ resource "aws_launch_template" "compute" {
     bucket_name        = var.bucket_name
     service_type       = var.service_type
     container_env_vars = var.container_env_vars
-    enable_pgbouncer  = var.enable_pgbouncer
+    enable_pgbouncer   = var.enable_pgbouncer
     db_host            = var.db_read_replica_hosts != [] ? var.db_read_replica_hosts[0] : ""
     db_name            = var.db_name
     db_password        = var.db_password
@@ -93,6 +93,8 @@ resource "aws_autoscaling_group" "compute" {
   min_size         = var.min_size
   max_size         = var.max_size
   desired_capacity = var.desired_capacity
+
+  target_group_arns = var.alb_target_group_arn != "" ? [var.alb_target_group_arn] : []
 
   launch_template {
     id      = aws_launch_template.compute.id
@@ -250,13 +252,7 @@ resource "aws_autoscaling_policy" "scale_down" {
   autoscaling_group_name = aws_autoscaling_group.compute.name
 }
 
-# ALB Target Group Attachment (if ALB is configured)
-resource "aws_autoscaling_group_attachment" "alb_attachment" {
-  count = var.alb_target_group_arn != "" ? 1 : 0
 
-  autoscaling_group_name = aws_autoscaling_group.compute.name
-  target_group_arn       = var.alb_target_group_arn
-}
 
 # Data source to get instance IPs from ASG
 data "aws_instances" "compute" {

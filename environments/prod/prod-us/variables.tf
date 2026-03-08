@@ -109,6 +109,14 @@ variable "mail_password" {
   type      = string
   sensitive = true
 }
+variable "mail_username" {
+  type      = string
+  sensitive = true
+}
+
+variable "mail_host" {
+  type = string
+}
 
 variable "aws_access_key_id" {
   type      = string

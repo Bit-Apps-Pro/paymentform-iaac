@@ -1,16 +1,16 @@
 resource "aws_cloudtrail" "main" {
-  name                           = "${var.environment}-cloudtrail"
-  s3_bucket_name                 = var.s3_bucket_name
+  name                          = "${var.environment}-cloudtrail"
+  s3_bucket_name                = var.s3_bucket_name
   s3_key_prefix                 = var.s3_key_prefix
-  include_global_service_events  = true
+  include_global_service_events = true
   is_multi_region_trail         = var.enable_multi_region
   enable_log_file_validation    = true
-  enable_logging               = true
-  sns_topic_name               = var.sns_topic_name
+  enable_logging                = true
+  sns_topic_name                = var.sns_topic_name
 
   event_selector {
     read_write_type           = "All"
-    include_management_events  = true
+    include_management_events = true
     data_resource {
       type   = "AWS::S3::Object"
       values = ["arn:aws:s3:::${var.s3_bucket_name}/*"]
@@ -86,21 +86,21 @@ resource "aws_s3_bucket_policy" "cloudtrail_logs_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid = "AWSCloudTrailAclCheck"
+        Sid    = "AWSCloudTrailAclCheck"
         Effect = "Allow"
         Principal = {
           Service = "cloudtrail.amazonaws.com"
         }
-        Action = "s3:GetBucketAcl"
+        Action   = "s3:GetBucketAcl"
         Resource = "arn:aws:s3:::${var.s3_bucket_name}"
       },
       {
-        Sid = "AWSCloudTrailWrite"
+        Sid    = "AWSCloudTrailWrite"
         Effect = "Allow"
         Principal = {
           Service = "cloudtrail.amazonaws.com"
         }
-        Action = "s3:PutObject"
+        Action   = "s3:PutObject"
         Resource = "arn:aws:s3:::${var.s3_bucket_name}/*"
         Condition = {
           StringEquals = {

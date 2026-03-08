@@ -53,3 +53,7 @@ output "cross_region_replica_endpoint" {
   description = "Cross-region replica endpoint (private IP)"
   value       = var.enable_cross_region_replica ? aws_instance.postgresql_cross_region_replica[0].private_ip : null
 }
+
+output "volume_ids" {
+  value = local.use_external_volumes ? var.volume_ids : { for k, v in module.volumes : k => v.volume_id }
+}
