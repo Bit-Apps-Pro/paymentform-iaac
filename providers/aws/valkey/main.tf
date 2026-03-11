@@ -8,7 +8,7 @@ terraform {
 }
 
 locals {
-  prefix     = var.environment
+  prefix     = var.name
   node_count = var.node_count
 }
 
@@ -66,4 +66,9 @@ resource "aws_iam_role" "valkey_role" {
 resource "aws_iam_instance_profile" "valkey_profile" {
   name = "${local.prefix}-valkey-profile"
   role = aws_iam_role.valkey_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_core" {
+  role       = aws_iam_role.valkey_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }

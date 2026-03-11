@@ -13,13 +13,13 @@ locals {
 
 # Security Group for ALB
 resource "aws_security_group" "alb" {
-  name_prefix = "${local.prefix}-alb-sg"
+  name_prefix = "${local.prefix}-sg"
   vpc_id      = var.vpc_id
 
   tags = merge(
     var.standard_tags,
     {
-      Name = "${local.prefix}-alb-security-group"
+      Name = "${local.prefix}-security-group"
     }
   )
 }
@@ -99,7 +99,7 @@ resource "aws_lb_target_group" "main" {
 
 # Target Group for Renderer
 resource "aws_lb_target_group" "renderer" {
-  name     = "${local.prefix}-renderer-tg"
+  name     = "${local.prefix}-rndr-tg"
   port     = var.target_port
   protocol = "HTTP"
   vpc_id   = var.vpc_id
@@ -130,7 +130,7 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.renderer.arn
   }
 }
 
@@ -142,7 +142,7 @@ resource "aws_lb_listener" "https" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.renderer.arn
   }
 }
 
@@ -160,24 +160,6 @@ resource "aws_lb_listener_rule" "backend_host_rule" {
   condition {
     host_header {
       values = [var.api_hostname]
-    }
-  }
-}
-
-resource "aws_lb_listener_rule" "renderer_host_rule" {
-  count = var.api_hostname != "" ? 1 : 0
-
-  listener_arn = var.ssl_certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
-  priority     = 200
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.renderer.arn
-  }
-
-  condition {
-    host_header {
-      values = ["*"] # Catch-all for all other hostnames (tenant domains)
     }
   }
 }

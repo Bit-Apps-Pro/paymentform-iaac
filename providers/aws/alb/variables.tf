@@ -52,3 +52,9 @@ variable "api_hostname" {
   type        = string
   default     = ""
 }
+
+variable "renderer_hostname" {
+  description = "Hostname for renderer (e.g., renderer.paymentform.io)"
+  type        = string
+  default     = ""
+}

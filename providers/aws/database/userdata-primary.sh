@@ -1,66 +1,34 @@
 #!/bin/bash
 set -e
 
-export DEBIAN_FRONTEND=noninteractive
+log() {
+  echo "[ $(date '+%Y-%m-%d %H:%M:%S') ] $1"
+}
 
-# Format and mount data volume
 DATA_VOLUME="${data_volume_device}"
 MOUNT_POINT="/mnt/postgresql"
 
-# Check if volume exists
 if [ -b "${DATA_VOLUME}" ]; then
-    # Format the volume
     mkfs -t ext4 ${DATA_VOLUME}
-    
-    # Create mount point
     mkdir -p ${MOUNT_POINT}
-    
-    # Mount the volume
     mount ${DATA_VOLUME} ${MOUNT_POINT}
-    
-    # Add to fstab for persistence
     echo "${DATA_VOLUME} ${MOUNT_POINT} ext4 defaults,nofail 0 2" >> /etc/fstab
-    
-    # Create postgres directory on data volume
     mkdir -p ${MOUNT_POINT}/data
     chown -R postgres:postgres ${MOUNT_POINT}
     chmod 700 ${MOUNT_POINT}/data
 fi
 
-# Install PostgreSQL
-echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-apt-get update
-apt-get install -y postgresql-$${postgres_version} postgresql-contrib-$${postgres_version} pgbackrest
+log "Installing PostgreSQL ${postgres_version} on AL2023..."
 
-# Configure PostgreSQL to use data volume
+dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+dnf module disable postgresql -y || true
+dnf install -y postgresql${postgres_version} postgresql${postgres_version}-server pgbackrest
+
 PGDATA_DIR="${MOUNT_POINT}/data"
-PGCONF_FILE="/etc/postgresql/$${postgres_version}/main/postgresql.conf"
+PGCONF_FILE="/var/lib/pgsql/${postgres_version}/data/postgresql.conf"
 
-# Stop default PostgreSQL if running
-systemctl stop postgresql || true
-
-# Initialize data directory on volume if not exists
-if [ ! -d "${PGDATA_DIR}" ]; then
-    chown -R postgres:postgres ${MOUNT_POINT}
-    chmod 700 ${MOUNT_POINT}/data
-fi
-
-# Update postgresql.conf for replication and pgbackrest
-echo "data_directory = '$${PGDATA_DIR}'" >> "$$PGCONF_FILE"
-echo "listen_addresses = '*'" >> "$$PGCONF_FILE"
-echo "max_wal_senders = 3" >> "$$PGCONF_FILE"
-echo "max_replication_slots = 3" >> "$$PGCONF_FILE"
-echo "wal_level = replica" >> "$$PGCONF_FILE"
-echo "hot_standby = on" >> "$$PGCONF_FILE"
-
-# Configure pg_hba.conf for replication
-echo "host     all             all             10.0.0.0/16           trust" >> /etc/postgresql/$${postgres_version}/main/pg_hba.conf
-echo "host     replication     replicator      10.0.0.0/16           md5" >> /etc/postgresql/$${postgres_version}/main/pg_hba.conf
-
-# Configure pgbackrest
 mkdir -p /etc/pgbackrest
-cat > /etc/pgbackrest/pgbackrest.conf <<'EOF'
+cat > /etc/pgbackrest/pgbackrest.conf <<EOF
 [global]
 repo1-type=s3
 repo1-s3-bucket=${r2_bucket_name}
@@ -77,16 +45,48 @@ db-port=5432
 db-user=postgres
 EOF
 
-# Start PostgreSQL
-systemctl enable postgresql
-systemctl start postgresql
+RESTORE_BACKUP_VAL="false"
+if [ -z "$(ls -A ${PGDATA_DIR} 2>/dev/null)" ]; then
+    log "Data directory is empty, checking for backups..."
+    if pgbackrest info 2>/dev/null | grep -q "backup"; then
+        RESTORE_BACKUP_VAL="true"
+    fi
+fi
 
-# Create database if not exists
-su - postgres -c "psql -c \"CREATE DATABASE $${db_name};\" 2>/dev/null || true"
+if [ "$RESTORE_BACKUP_VAL" = "true" ]; then
+    log "Restoring from pgbackrest backup..."
+    chown -R postgres:postgres ${MOUNT_POINT}
+    chmod 700 ${MOUNT_POINT}/data
+    
+    su - postgres -c "pgbackrest restore --type=latest --force"
+    log "Backup restored successfully"
+else
+    log "Initializing new PostgreSQL data directory..."
+    /usr/pgsql-${postgres_version}/bin/postgresql-${postgres_version} --initdb || true
+    chown -R postgres:postgres ${MOUNT_POINT}
+    chmod 700 ${MOUNT_POINT}/data
+fi
 
-# Configure primary for replication
-su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD '${db_password}';\""
+echo "data_directory = '${PGDATA_DIR}'" >> "$PGCONF_FILE"
+echo "listen_addresses = '*'" >> "$PGCONF_FILE"
+echo "max_wal_senders = 3" >> "$PGCONF_FILE"
+echo "max_replication_slots = 3" >> "$PGCONF_FILE"
+echo "wal_level = replica" >> "$PGCONF_FILE"
+echo "hot_standby = on" >> "$PGCONF_FILE"
 
-sleep 10
+PG_HBA_FILE="/var/lib/pgsql/${postgres_version}/data/pg_hba.conf"
+echo "host     all             all             10.0.0.0/16           trust" >> $PG_HBA_FILE
+echo "host     replication     replicator      10.0.0.0/16           md5" >> $PG_HBA_FILE
 
-echo "PostgreSQL primary setup complete with data volume"
+systemctl enable postgresql-${postgres_version}
+systemctl start postgresql-${postgres_version}
+
+sleep 5
+
+if [ "$RESTORE_BACKUP_VAL" = "true" ]; then
+    log "PostgreSQL restored from backup and started"
+else
+    su - postgres -c "psql -c \"CREATE DATABASE ${db_name};\" 2>/dev/null || true"
+    su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD '${db_password}';\""
+    log "PostgreSQL primary setup complete"
+fi

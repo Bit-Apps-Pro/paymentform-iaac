@@ -24,8 +24,12 @@ terraform {
   }
 }
 
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
 locals {
-  resource_prefix = "paymentform-prod-us"
+  resource_prefix = "paymentform-p-us"
   region          = "us-east-1"
 
   standard_tags = {
@@ -117,7 +121,7 @@ module "postgres_primary_volume" {
   environment       = "prod-us"
   name              = "${local.resource_prefix}-database-primary"
   availability_zone = "${local.region}a"
-  size              = 50
+  size              = 30
   volume_type       = "gp3"
   encrypted         = true
   iops              = 3000
@@ -162,12 +166,12 @@ module "postgres_database" {
 
   primary_instance_type = "t4g.small"
   replica_instance_type = "t4g.micro"
-  primary_volume_size   = 30
-  replica_volume_size   = 30
+  primary_volume_size   = 20
+  replica_volume_size   = 20
   volume_type           = "gp3"
 
   enable_replica   = true
-  postgres_version = "16"
+  postgres_version = "17"
   db_name          = var.db_database
   db_user          = var.db_username
   db_password      = var.db_password
@@ -194,6 +198,7 @@ module "paymentform_cache" {
   source = "../../../providers/aws/valkey"
 
   environment       = "prod-us"
+  name              = "${local.resource_prefix}-cache"
   ami_id            = var.valkey_ami_id
   subnet_ids        = module.paymentform_networking.public_subnet_ids
   security_group_id = module.paymentform_security.valkey_security_group_id
@@ -221,7 +226,7 @@ module "paymentform_backend" {
   instance_prefix            = "${local.resource_prefix}-backend"
   subnet_ids                 = module.paymentform_networking.public_subnet_ids
   instance_type              = "t4g.small"
-  ami_id                     = "ami-04e70591d54b84a4c"
+  ami_id                     = "ami-06fdf1c06301d49be"
   key_pair_name              = ""
   min_size                   = 1
   max_size                   = 4
@@ -351,7 +356,7 @@ module "paymentform_renderer" {
   instance_prefix            = "${local.resource_prefix}-renderer"
   subnet_ids                 = module.paymentform_networking.public_subnet_ids
   instance_type              = "t4g.small"
-  ami_id                     = "ami-04e70591d54b84a4c"
+  ami_id                     = "ami-06fdf1c06301d49be"
   key_pair_name              = ""
   min_size                   = 1
   max_size                   = 4
@@ -361,7 +366,7 @@ module "paymentform_renderer" {
   standard_tags              = local.standard_tags
   detailed_monitoring        = true
   ebs_optimized              = true
-  root_volume_size           = 50
+  root_volume_size           = 20
   root_volume_type           = "gp3"
   ecs_cluster_name           = "${local.resource_prefix}-cluster"
   ecs_security_group_id      = module.paymentform_security.ecs_security_group_id
@@ -429,10 +434,13 @@ module "paymentform_kv_store" {
   resource_prefix       = local.resource_prefix
   standard_tags         = local.standard_tags
   cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_api_token  = var.kv_store_api_token
+  cloudflare_api_token  = var.cloudflare_api_token
 
-  namespace_name    = "tenants"
-  namespace_enabled = false
+  namespace_name     = "tenants"
+  namespace_enabled  = true
+  deploy_worker      = true
+  worker_path        = "${path.root}/../../../kv-store"
+  kv_store_api_token = var.kv_store_api_token
 }
 
 module "paymentform_alb" {
@@ -502,11 +510,11 @@ module "paymenform_dns" {
   app_subdomain      = "app.paymentform.io"
   renderer_subdomain = "*.paymentform.io"
 
-  api_cname                   = module.paymentform_alb.alb_dns_name
-  app_origin_ips              = []
-  renderer_origin_ip          = module.paymentform_alb.alb_dns_name
+  api_cname      = module.paymentform_alb.alb_dns_name
+  app_origin_ips = []
+  # renderer_origin_ip          = module.paymentform_alb.alb_dns_name
   app_container_endpoint      = module.paymentform_client.container_endpoint
-  renderer_container_endpoint = ""
+  renderer_container_endpoint = module.paymentform_alb.alb_dns_name
 
   cloudflare_plan      = "free"
   enable_load_balancer = false

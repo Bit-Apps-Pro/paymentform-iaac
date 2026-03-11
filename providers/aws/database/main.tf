@@ -225,6 +225,11 @@ resource "aws_iam_role_policy_attachment" "pgbackrest_s3_attachment" {
   policy_arn = aws_iam_policy.pgbackrest_s3_access.arn
 }
 
+resource "aws_iam_role_policy_attachment" "ssm_core" {
+  role       = aws_iam_role.pgbackrest_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # Cross-region Read Replica
 resource "aws_instance" "postgresql_cross_region_replica" {
   count         = var.enable_cross_region_replica ? 1 : 0

@@ -267,9 +267,10 @@ data "aws_instances" "compute" {
 
 # SSM Parameter for Container Image Tag
 resource "aws_ssm_parameter" "image" {
-  name  = "/paymentform/${var.environment}/backend/IMAGE"
-  type  = "String"
-  value = var.container_image
+  name      = "/paymentform/${var.environment}/backend/IMAGE"
+  type      = "String"
+  value     = var.container_image
+  overwrite = true
 
   tags = merge(
     var.standard_tags,

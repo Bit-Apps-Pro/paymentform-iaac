@@ -39,3 +39,22 @@ variable "namespace_enabled" {
   type        = bool
   default     = true
 }
+
+variable "deploy_worker" {
+  description = "Deploy the kv-store worker using wrangler"
+  type        = bool
+  default     = false
+}
+
+variable "worker_path" {
+  description = "Path to the kv-store worker code (containing wrangler.toml)"
+  type        = string
+  default     = ""
+}
+
+variable "kv_store_api_token" {
+  description = "API token for KV store worker operations"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
