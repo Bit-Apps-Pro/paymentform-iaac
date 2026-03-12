@@ -49,18 +49,6 @@ resource "cloudflare_dns_record" "api" {
   comment = "API endpoint - proxied through Cloudflare"
 }
 
-# DNS Record for App subdomain (proxied through Cloudflare)
-# Points to container endpoint or EC2 instance
-resource "cloudflare_dns_record" "app" {
-  zone_id = var.cloudflare_zone_id
-  name    = var.app_subdomain
-  content = local.app_target
-  type    = var.app_container_endpoint != "" ? "CNAME" : "A"
-  proxied = true
-  ttl     = 1
-  comment = "App dashboard - proxied through Cloudflare"
-}
-
 # DNS Record for Renderer wildcard subdomain
 # DNS-only (not proxied) - Caddy on container handles on-demand TLS directly
 resource "cloudflare_dns_record" "renderer_wildcard" {

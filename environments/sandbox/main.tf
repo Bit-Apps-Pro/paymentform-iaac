@@ -215,7 +215,7 @@ module "aws_compute_backend" {
     STRIPE_REDIRECT_URI           = "https://api.sandbox.paymentform.io/stripe/callback"
     STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
 
-    KV_STORE_API_URL      = module.cloudflare_kv_tenants.api_endpoint
+    KV_STORE_API_URL      = module.cloudflare_kv_tenants.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
   }
@@ -348,7 +348,7 @@ module "cloudflare_container_renderer" {
     R2_SSL_SECRET_ACCESS_KEY = var.r2_ssl_secret_access_key
     API_URL                  = "https://api.sandbox.paymentform.io"
     DOMAIN                   = "https://app.sandbox.paymentform.io"
-    KV_STORE_BASE_URL        = module.cloudflare_kv_tenants.api_endpoint
+    KV_STORE_BASE_URL        = module.cloudflare_kv_tenants.kv_store_endpoint
     KV_STORE_API_TOKEN       = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID    = module.cloudflare_kv_tenants.namespace_id
     STRIPE_KEY               = var.stripe_public_key
@@ -463,7 +463,7 @@ module "cloudflare_container_backend" {
     STRIPE_REDIRECT_URI           = "https://api.sandbox.paymentform.io/stripe/callback"
     STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
 
-    KV_STORE_API_URL      = module.cloudflare_kv_tenants.api_endpoint
+    KV_STORE_API_URL      = module.cloudflare_kv_tenants.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
   }

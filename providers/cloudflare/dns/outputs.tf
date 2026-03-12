@@ -5,11 +5,6 @@ output "api_dns_record_id" {
   value       = cloudflare_dns_record.api[0].id
 }
 
-output "app_dns_record_id" {
-  description = "DNS record ID for App subdomain"
-  value       = cloudflare_dns_record.app.id
-}
-
 output "renderer_dns_record_id" {
   description = "DNS record ID for renderer wildcard"
   value       = cloudflare_dns_record.renderer_wildcard.id
@@ -20,10 +15,6 @@ output "api_hostname" {
   value       = cloudflare_dns_record.api[0].name
 }
 
-output "app_hostname" {
-  description = "Full hostname for App"
-  value       = cloudflare_dns_record.app.name
-}
 
 output "renderer_hostname" {
   description = "Full hostname pattern for renderer"

@@ -55,6 +55,10 @@ EOF
 "postgres" "${db_password}"
 EOF
 
+    # Create pgbouncer user and group if they don't exist
+    groupadd -f pgbouncer || true
+    useradd -r -g pgbouncer pgbouncer || true
+    
     mkdir -p /var/run/pgbouncer
     chown pgbouncer:pgbouncer /etc/pgbouncer/pgbouncer.ini /etc/pgbouncer/userlist.txt /var/run/pgbouncer
     chmod 640 /etc/pgbouncer/pgbouncer.ini /etc/pgbouncer/userlist.txt
@@ -73,21 +77,17 @@ ENV_PATH="/etc/app.env"
 
 echo "${container_env_vars}" >> $ENV_PATH
 
-IMAGE=$(aws ssm get-parameter \
- --name "/paymentform/${environment}/backend/IMAGE" \
- --region ${region} \
- --query Parameter.Value \
- --output text 2>/dev/null)
-
-log "Pulling image $IMAGE"
+log "Pulling image ${IMAGE}"
 
 authenticate_ghcr
-docker pull $IMAGE
+docker pull ${IMAGE}
 
 docker stop paymentform-${service_type} || true
 docker rm paymentform-${service_type} || true
 
-configure_pgbouncer
+if [ "${enable_pgbouncer}" = "true" ]; then
+  configure_pgbouncer
+fi
 
 docker run -d \
   --name paymentform-${service_type} \
@@ -96,8 +96,8 @@ docker run -d \
   --env-file $ENV_PATH \
   -p 80:80 \
   -p 443:443 \
-  -v /data/caddy:/data/caddy \
-  -v /config/caddy:/config/caddy \
-  $IMAGE
+  -v /caddy/data:/data/caddy \
+  -v /caddy/config:/config/caddy \
+  ${IMAGE}
 
 log "Container started successfully"

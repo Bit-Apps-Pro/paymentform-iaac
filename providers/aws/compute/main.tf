@@ -38,6 +38,7 @@ resource "aws_launch_template" "compute" {
     db_host            = length(var.db_read_replica_hosts) > 0 ? var.db_read_replica_hosts[0] : "localhost"
     db_name            = var.db_name
     db_password        = var.db_password
+    IMAGE              = var.container_image
   }))
 
   key_name      = var.key_pair_name
@@ -263,20 +264,5 @@ data "aws_instances" "compute" {
   }
 
   depends_on = [aws_autoscaling_group.compute]
-}
-
-# SSM Parameter for Container Image Tag
-resource "aws_ssm_parameter" "image" {
-  name      = "/paymentform/${var.environment}/backend/IMAGE"
-  type      = "String"
-  value     = var.container_image
-  overwrite = true
-
-  tags = merge(
-    var.standard_tags,
-    {
-      Name = "${local.prefix}-image-tag"
-    }
-  )
 }
 

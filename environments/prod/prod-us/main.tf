@@ -338,7 +338,7 @@ module "paymentform_backend" {
     STRIPE_REDIRECT_URI           = "https://api.paymentform.io/stripe/callback"
     STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
 
-    KV_STORE_API_URL      = module.paymentform_kv_store.api_endpoint
+    KV_STORE_API_URL      = module.paymentform_kv_store.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.paymentform_kv_store.namespace_id
   }
@@ -385,7 +385,7 @@ module "paymentform_renderer" {
     R2_SSL_SECRET_ACCESS_KEY = var.r2_ssl_secret_access_key
     API_URL                  = "https://api.paymentform.io"
     DOMAIN                   = "https://app.paymentform.io"
-    KV_STORE_BASE_URL        = module.paymentform_kv_store.api_endpoint
+    KV_STORE_BASE_URL        = module.paymentform_kv_store.kv_store_endpoint
     KV_STORE_NAMESPACE_ID    = module.paymentform_kv_store.namespace_id
     KV_STORE_API_TOKEN       = var.kv_store_api_token
     STRIPE_KEY               = var.stripe_public_key
@@ -422,7 +422,7 @@ module "paymentform_storage_cdn_worker" {
   cloudflare_zone_id    = var.cloudflare_zone_id
 
   worker_enabled          = false
-  worker_route_pattern    = ""
+  worker_route_pattern    = "app.paymentform.io/*"
   cors_allowed_origins    = ["https://app.paymentform.io"]
   application_bucket_name = module.paymentform_storage_application.bucket_name
 }
@@ -430,7 +430,7 @@ module "paymentform_storage_cdn_worker" {
 module "paymentform_kv_store" {
   source = "../../../providers/cloudflare/kv"
 
-  environment           = "prod-us"
+  environment           = "paymenform"
   resource_prefix       = local.resource_prefix
   standard_tags         = local.standard_tags
   cloudflare_account_id = var.cloudflare_account_id
@@ -439,7 +439,7 @@ module "paymentform_kv_store" {
   namespace_name     = "tenants"
   namespace_enabled  = true
   deploy_worker      = true
-  worker_path        = "${path.root}/../../../kv-store"
+  worker_path        = "${path.root}/../../../../kv-store"
   kv_store_api_token = var.kv_store_api_token
 }
 
@@ -513,7 +513,7 @@ module "paymenform_dns" {
   api_cname      = module.paymentform_alb.alb_dns_name
   app_origin_ips = []
   # renderer_origin_ip          = module.paymentform_alb.alb_dns_name
-  app_container_endpoint      = module.paymentform_client.container_endpoint
+  # app_container_endpoint      = module.paymentform_client.container_endpoint
   renderer_container_endpoint = module.paymentform_alb.alb_dns_name
 
   cloudflare_plan      = "free"

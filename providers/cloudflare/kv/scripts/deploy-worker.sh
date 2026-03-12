@@ -2,7 +2,7 @@
 set -e
 
 NAMESPACE_ID="$1"
-WORKER_PATH="$2"
+WORKER_PATH=$(realpath "$2")
 ENV="$3"
 ACCOUNT_ID="$4"
 KV_STORE_API_TOKEN="$5"
@@ -31,7 +31,7 @@ cd "$WORKER_PATH"
 
 if [ -n "$KV_STORE_API_TOKEN" ]; then
     echo "Setting KV_STORE_API_TOKEN secret..."
-    echo "$KV_STORE_API_TOKEN" | wrangler secret put KV_STORE_API_TOKEN --env prod --yes 2>/dev/null || true
+    echo "$KV_STORE_API_TOKEN" | wrangler secret put KV_STORE_API_TOKEN --env prod 2>/dev/null || true
 fi
 
 if [ -n "$KV_NAMESPACE_ID" ]; then
@@ -49,10 +49,6 @@ if ! command -v wrangler &> /dev/null; then
     npm install -g wrangler
 fi
 
-if [ "$ENV" = "prod-us" ]; then
-    wrangler deploy --env prod --yes
-else
-    wrangler deploy --yes
-fi
+wrangler deploy --env prod
 
 echo "KV Store deployed successfully"

@@ -223,7 +223,7 @@ module "aws_compute_backend" {
     STRIPE_REDIRECT_URI           = "https://api.paymentform.io/stripe/callback"
     STRIPE_CONNECT_WEBHOOK_SECRET = var.stripe_connect_webhook_secret
 
-    KV_STORE_API_URL      = module.cloudflare_kv_tenants.api_endpoint
+    KV_STORE_API_URL      = module.cloudflare_kv_tenants.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
   }

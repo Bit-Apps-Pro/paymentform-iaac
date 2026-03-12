@@ -83,7 +83,7 @@ resource "aws_volume_attachment" "replica_data" {
 
 # EC2 Instance for PostgreSQL Primary
 resource "aws_instance" "postgresql_primary" {
-  ami           = var.ami_id
+  ami           = "ami-076cedc463bf709d2"
   instance_type = var.primary_instance_type
   subnet_id     = var.subnet_ids[0]
 
@@ -131,7 +131,7 @@ resource "aws_instance" "postgresql_primary" {
 # EC2 Instance for PostgreSQL Replica
 resource "aws_instance" "postgresql_replica" {
   count         = var.enable_replica ? 1 : 0
-  ami           = var.ami_id
+  ami           = "ami-076cedc463bf709d2"
   instance_type = var.replica_instance_type
   subnet_id     = length(var.subnet_ids) > 1 ? var.subnet_ids[1] : var.subnet_ids[0]
 
@@ -233,7 +233,7 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 # Cross-region Read Replica
 resource "aws_instance" "postgresql_cross_region_replica" {
   count         = var.enable_cross_region_replica ? 1 : 0
-  ami           = var.ami_id
+  ami           = "ami-076cedc463bf709d2"
   instance_type = var.replica_instance_type
   subnet_id     = var.replica_subnet_ids[0]
 
