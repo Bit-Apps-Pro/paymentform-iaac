@@ -22,9 +22,9 @@ output "api_endpoint" {
 
 output "kv_store_endpoint" {
   description = "KV store worker endpoint URL"
-  value = var.deploy_worker ? "https://tenant-validator-prod.workers.dev" : (
+  value = var.deploy_worker ? "https://tenant-validator-prod.bitapps.workers.dev" : (
     var.environment == "sandbox" ? "https://tenant-validator-sandbox.workers.dev" : (
-      startswith(var.environment, "prod") ? "https://tenant-validator-prod.workers.dev" : "https://tenant-validator.workers.dev"
+      startswith(var.environment, "prod") ? "https://tenant-validator-prod.workers.dev" : "https://tenant-validator-prod.bitapps.workers.dev"
     )
   )
 }

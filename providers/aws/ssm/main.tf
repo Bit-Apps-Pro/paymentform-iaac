@@ -97,12 +97,12 @@ resource "aws_ssm_parameter" "mail_password" {
   }
 }
 
-resource "aws_ssm_parameter" "aws_access_key_id" {
-  count       = var.aws_access_key_id != "" ? 1 : 0
+resource "aws_ssm_parameter" "upload_storage_access_key_id" {
+  count       = var.upload_storage_access_key_id != "" ? 1 : 0
   name        = "/paymentform/${var.environment}/backend/AWS_ACCESS_KEY_ID"
   description = "AWS access key ID for backend"
   type        = "SecureString"
-  value       = var.aws_access_key_id
+  value       = var.upload_storage_access_key_id
   overwrite   = true
   key_id      = var.kms_key_id
 
@@ -111,12 +111,12 @@ resource "aws_ssm_parameter" "aws_access_key_id" {
   }
 }
 
-resource "aws_ssm_parameter" "aws_secret_access_key" {
-  count       = var.aws_secret_access_key != "" ? 1 : 0
+resource "aws_ssm_parameter" "upload_storage_secret_access_key" {
+  count       = var.upload_storage_secret_access_key != "" ? 1 : 0
   name        = "/paymentform/${var.environment}/backend/AWS_SECRET_ACCESS_KEY"
   description = "AWS secret access key for backend"
   type        = "SecureString"
-  value       = var.aws_secret_access_key
+  value       = var.upload_storage_secret_access_key
   overwrite   = true
   key_id      = var.kms_key_id
 

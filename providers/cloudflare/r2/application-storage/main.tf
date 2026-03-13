@@ -16,7 +16,7 @@ provider "cloudflare" {
 # Application Storage Bucket (private files)
 resource "cloudflare_r2_bucket" "application_storage" {
   account_id = var.cloudflare_account_id
-  name       = "${var.environment}-${var.r2_bucket_name}"
+  name       = var.r2_bucket_name
 
   lifecycle {
     # prevent_destroy = true

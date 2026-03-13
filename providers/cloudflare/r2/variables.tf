@@ -52,7 +52,7 @@ variable "r2_ssl_bucket_enabled" {
   default     = true
 }
 
-variable "r2_backup_bucket_name" {
+variable "backup_storage_bucket_name" {
   description = "Name of the R2 bucket for database backups (pgbackrest)"
   type        = string
   default     = ""

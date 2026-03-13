@@ -76,6 +76,7 @@ ENV_PATH="/etc/app.env"
 > $ENV_PATH
 
 echo "${container_env_vars}" >> $ENV_PATH
+echo "AUTO_SSL=${auto_ssl}" >> $ENV_PATH
 
 log "Pulling image ${IMAGE}"
 

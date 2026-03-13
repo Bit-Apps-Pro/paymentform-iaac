@@ -110,22 +110,22 @@ resource "aws_instance" "postgresql_primary" {
   )
 
   user_data = base64encode(templatefile("${path.module}/userdata-primary.sh", {
-    environment            = var.environment
-    postgres_version       = var.postgres_version
-    db_name                = var.db_name
-    db_user                = var.db_user
-    db_password            = var.db_password
-    r2_endpoint            = var.r2_endpoint
-    r2_bucket_name         = var.r2_bucket_name
-    r2_access_key          = var.r2_access_key
-    r2_secret_key          = var.r2_secret_key
-    pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
-    region                 = var.region
-    data_volume_device     = "/dev/sdf"
-    DATA_VOLUME            = "/dev/sdf"
-    MOUNT_POINT            = "/mnt/postgresql"
-    PGDATA_DIR             = "/mnt/postgresql/data"
-    peer_vpc_cidrs_hba     = join("\n", [for cidr in var.peer_vpc_cidrs : "host  replication  replicator  ${cidr}  scram-sha-256\nhost  all  all  ${cidr}  md5"])
+    environment                          = var.environment
+    postgres_version                     = var.postgres_version
+    db_name                              = var.db_name
+    db_user                              = var.db_user
+    db_password                          = var.db_password
+    database_backup_bucket_name          = var.database_backup_bucket_endpoint
+    database_backup_bucket_endpoint      = var.database_backup_bucket_name
+    database_backup_bucket_access_key_id = var.database_backup_bucket_access_key_id
+    database_backup_bucket_access_key    = var.database_backup_bucket_access_key
+    pgbackrest_cipher_pass               = var.pgbackrest_cipher_pass
+    region                               = var.region
+    data_volume_device                   = "/dev/sdf"
+    DATA_VOLUME                          = "/dev/sdf"
+    MOUNT_POINT                          = "/mnt/postgresql"
+    PGDATA_DIR                           = "/mnt/postgresql/data"
+    peer_vpc_cidrs_hba                   = join("\n", [for cidr in var.peer_vpc_cidrs : "host  replication  replicator  ${cidr}  scram-sha-256\nhost  all  all  ${cidr}  md5"])
   }))
 }
 
@@ -206,7 +206,7 @@ resource "aws_iam_policy" "pgbackrest_s3_access" {
           "s3:ListBucket",
           "s3:GetBucketLocation"
         ]
-        Resource = "arn:aws:s3:::${var.r2_bucket_name}"
+        Resource = "arn:aws:s3:::${var.database_backup_bucket_name}"
       },
       {
         Effect = "Allow"
@@ -215,7 +215,7 @@ resource "aws_iam_policy" "pgbackrest_s3_access" {
           "s3:GetObject",
           "s3:DeleteObject"
         ]
-        Resource = "arn:aws:s3:::${var.r2_bucket_name}/*"
+        Resource = "arn:aws:s3:::${var.database_backup_bucket_name}/*"
       }
     ]
   })

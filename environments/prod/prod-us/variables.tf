@@ -9,6 +9,10 @@ variable "cloudflare_api_token" {
   type      = string
   sensitive = true
 }
+variable "cloudflare_api_token_wildcard_dns" {
+  type      = string
+  sensitive = true
+}
 
 variable "cloudflare_account_id" {
   type      = string
@@ -61,12 +65,12 @@ variable "stripe_public_key" {
   default = ""
 }
 
-variable "r2_ssl_access_key_id" {
+variable "ssl_storage_access_key_id" {
   type      = string
   sensitive = true
 }
 
-variable "r2_ssl_secret_access_key" {
+variable "ssl_storage_secret_access_key" {
   type      = string
   sensitive = true
 }
@@ -118,12 +122,12 @@ variable "mail_host" {
   type = string
 }
 
-variable "aws_access_key_id" {
+variable "upload_storage_access_key_id" {
   type      = string
   sensitive = true
 }
 
-variable "aws_secret_access_key" {
+variable "upload_storage_secret_access_key" {
   type      = string
   sensitive = true
 }
@@ -164,21 +168,21 @@ variable "valkey_ami_id" {
   default     = ""
 }
 
-variable "r2_backup_access_key" {
+variable "backup_storage_access_key_id" {
   description = "R2 access key for pgbackrest backups"
   type        = string
   sensitive   = true
   default     = ""
 }
 
-variable "r2_backup_secret_key" {
+variable "backup_storage_access_key" {
   description = "R2 secret key for pgbackrest backups"
   type        = string
   sensitive   = true
   default     = ""
 }
 
-variable "r2_backup_bucket_name" {
+variable "backup_storage_bucket_name" {
   description = "R2 bucket name for pgbackrest backups"
   type        = string
   default     = "prod-paymentform-backups"
@@ -219,4 +223,16 @@ variable "peer_regions" {
   description = "List of AWS regions for peer VPCs"
   type        = list(string)
   default     = []
+}
+
+variable "ssl_certificate_arn" {
+  description = "SSL certificate ARN for ALB HTTPS listener"
+  type        = string
+  default     = ""
+}
+
+variable "auto_ssl" {
+  description = "Enable AUTO_SSL in Caddy (true = HTTPS, false = HTTP only)"
+  type        = bool
+  default     = true
 }

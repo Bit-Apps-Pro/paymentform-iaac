@@ -61,10 +61,10 @@ mkdir -p /etc/pgbackrest
 cat > /etc/pgbackrest/pgbackrest.conf <<EOF
 [global]
 repo1-type=s3
-repo1-s3-bucket=${r2_bucket_name}
-repo1-s3-endpoint=${r2_endpoint}
-repo1-s3-key=${r2_access_key}
-repo1-s3-key-secret=${r2_secret_key}
+repo1-s3-bucket=${database_backup_bucket_name}
+repo1-s3-endpoint=${database_backup_bucket_endpoint}
+repo1-s3-key=${database_backup_bucket_access_key_id}
+repo1-s3-key-secret=${database_backup_bucket_access_key}
 repo1-cipher-pass=${pgbackrest_cipher_pass}
 repo1-retention-diff=7
 repo1-retention-full=7

@@ -110,8 +110,8 @@ export TF_VAR_renderer_container_image="ghcr.io/org/renderer:latest"
 export TF_VAR_ghcr_token="..."
 
 # R2 SSL Config
-export TF_VAR_r2_ssl_access_key_id="..."
-export TF_VAR_r2_ssl_secret_access_key="..."
+export TF_VAR_ssl_storage_access_key_id="..."
+export TF_VAR_ssl_storage_secret_access_key="..."
 
 # Database
 export TF_VAR_neon_database_url="..."

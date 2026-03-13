@@ -50,8 +50,8 @@ mail_from_name    = "Payment Form"
 mail_password     = "YOUR_SMTP_PASSWORD"
 
 # AWS/S3/R2
-aws_access_key_id     = "YOUR_AWS_ACCESS_KEY_ID"
-aws_secret_access_key = "YOUR_AWS_SECRET_ACCESS_KEY"
+upload_storage_access_key_id     = "YOUR_AWS_ACCESS_KEY_ID"
+upload_storage_secret_access_key = "YOUR_AWS_SECRET_ACCESS_KEY"
 aws_default_region    = "us-east-1"
 aws_bucket            = "paymentform-uploads"
 
@@ -117,11 +117,9 @@ valkey_ami_id = ""
 # ----------------------------------------------------------------------------
 # R2 Storage Configuration
 # ----------------------------------------------------------------------------
-r2_backup_bucket_name    = "prod-paymentform-backups"
-r2_ssl_access_key_id     = "YOUR_R2_SSL_ACCESS_KEY"
-r2_ssl_secret_access_key = "YOUR_R2_SSL_SECRET_KEY"
-r2_backup_access_key     = "YOUR_R2_BACKUP_ACCESS_KEY"
-r2_backup_secret_key     = "YOUR_R2_BACKUP_SECRET_KEY"
+backup_storage_bucket_name    = "prod-paymentform-backups"
+backup_storage_access_key_id     = "YOUR_R2_BACKUP_ACCESS_KEY"
+backup_storage_access_key     = "YOUR_R2_BACKUP_SECRET_KEY"
 
 # ----------------------------------------------------------------------------
 # pgBackrest Configuration

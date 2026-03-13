@@ -33,14 +33,14 @@ output "mail_password_ssm_path" {
   value       = length(aws_ssm_parameter.mail_password) > 0 ? aws_ssm_parameter.mail_password[0].name : ""
 }
 
-output "aws_access_key_id_ssm_path" {
+output "upload_storage_access_key_id_ssm_path" {
   description = "SSM parameter path for AWS_ACCESS_KEY_ID"
-  value       = length(aws_ssm_parameter.aws_access_key_id) > 0 ? aws_ssm_parameter.aws_access_key_id[0].name : ""
+  value       = length(aws_ssm_parameter.upload_storage_access_key_id) > 0 ? aws_ssm_parameter.upload_storage_access_key_id[0].name : ""
 }
 
-output "aws_secret_access_key_ssm_path" {
+output "upload_storage_secret_access_key_ssm_path" {
   description = "SSM parameter path for AWS_SECRET_ACCESS_KEY"
-  value       = length(aws_ssm_parameter.aws_secret_access_key) > 0 ? aws_ssm_parameter.aws_secret_access_key[0].name : ""
+  value       = length(aws_ssm_parameter.upload_storage_secret_access_key) > 0 ? aws_ssm_parameter.upload_storage_secret_access_key[0].name : ""
 }
 
 output "google_client_secret_ssm_path" {

@@ -81,8 +81,8 @@ module "aws_database" {
 
   r2_endpoint            = "https://paymentform-backups-sandbox.r2.cloudflarestorage.com"
   r2_bucket_name         = "paymentform-backups-sandbox"
-  r2_access_key          = var.r2_backup_access_key
-  r2_secret_key          = var.r2_backup_secret_key
+  r2_access_key          = var.backup_storage_access_key_id
+  r2_secret_key          = var.backup_storage_access_key
   pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
 
   standard_tags = local.standard_tags
@@ -189,8 +189,8 @@ module "aws_compute_backend" {
     MAIL_FROM_ADDRESS = "hello@paymentform.io"
     MAIL_FROM_NAME    = "Payment Form"
 
-    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = "us-east-1"
     AWS_BUCKET                  = "paymentform-uploads-sandbox"
     AWS_USE_PATH_STYLE_ENDPOINT = true
@@ -231,18 +231,18 @@ module "aws_ssm" {
   neon_database_url = var.neon_database_url
   kms_key_id        = ""
 
-  db_password                   = var.db_password
-  tenant_db_auth_token          = var.tenant_db_auth_token
-  tenant_db_encryption_key      = var.tenant_db_encryption_key
-  mail_password                 = var.mail_password
-  aws_access_key_id             = var.aws_access_key_id
-  aws_secret_access_key         = var.aws_secret_access_key
-  google_client_secret          = var.google_client_secret
-  stripe_secret                 = var.stripe_secret
-  stripe_client_id              = var.stripe_client_id
-  stripe_connect_webhook_secret = var.stripe_connect_webhook_secret
-  kv_store_api_token            = var.kv_store_api_token
-  ghcr_token                    = var.ghcr_token
+  db_password                      = var.db_password
+  tenant_db_auth_token             = var.tenant_db_auth_token
+  tenant_db_encryption_key         = var.tenant_db_encryption_key
+  mail_password                    = var.mail_password
+  upload_storage_access_key_id     = var.upload_storage_access_key_id
+  upload_storage_secret_access_key = var.upload_storage_secret_access_key
+  google_client_secret             = var.google_client_secret
+  stripe_secret                    = var.stripe_secret
+  stripe_client_id                 = var.stripe_client_id
+  stripe_connect_webhook_secret    = var.stripe_connect_webhook_secret
+  kv_store_api_token               = var.kv_store_api_token
+  ghcr_token                       = var.ghcr_token
 }
 
 # ============================================================================
@@ -258,10 +258,10 @@ module "cloudflare_r2" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
 
-  r2_bucket_name        = "paymentform-uploads-sandbox"
-  r2_public_bucket_name = ""
-  r2_ssl_bucket_name    = "paymentform-ssl-config"
-  r2_backup_bucket_name = "paymentform-backups-sandbox"
+  r2_bucket_name             = "paymentform-uploads-sandbox"
+  r2_public_bucket_name      = ""
+  r2_ssl_bucket_name         = "paymentform-ssl-config"
+  backup_storage_bucket_name = "paymentform-backups-sandbox"
 
   cors_allowed_origins    = ["*"]
   lifecycle_rules_enabled = true
@@ -344,8 +344,8 @@ module "cloudflare_container_renderer" {
   container_env_vars = {
     R2_SSL_BUCKET_NAME       = module.cloudflare_r2.ssl_config_bucket_name
     R2_SSL_ENDPOINT          = module.cloudflare_r2.r2_endpoint
-    R2_SSL_ACCESS_KEY_ID     = var.r2_ssl_access_key_id
-    R2_SSL_SECRET_ACCESS_KEY = var.r2_ssl_secret_access_key
+    R2_SSL_ACCESS_KEY_ID     = var.ssl_storage_access_key_id
+    R2_SSL_SECRET_ACCESS_KEY = var.ssl_storage_secret_access_key
     API_URL                  = "https://api.sandbox.paymentform.io"
     DOMAIN                   = "https://app.sandbox.paymentform.io"
     KV_STORE_BASE_URL        = module.cloudflare_kv_tenants.kv_store_endpoint
@@ -437,8 +437,8 @@ module "cloudflare_container_backend" {
     MAIL_FROM_ADDRESS = "hello@paymentform.io"
     MAIL_FROM_NAME    = "Payment Form"
 
-    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = "us-east-1"
     AWS_BUCKET                  = "paymentform-uploads-sandbox"
     AWS_USE_PATH_STYLE_ENDPOINT = true

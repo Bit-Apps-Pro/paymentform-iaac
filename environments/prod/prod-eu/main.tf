@@ -81,10 +81,10 @@ module "aws_database" {
   db_user          = var.db_username
   db_password      = var.db_password
 
-  r2_endpoint            = "https://${var.r2_backup_bucket_name}.r2.cloudflarestorage.com"
-  r2_bucket_name         = var.r2_backup_bucket_name
-  r2_access_key          = var.r2_backup_access_key
-  r2_secret_key          = var.r2_backup_secret_key
+  r2_endpoint            = "https://${var.backup_storage_bucket_name}.r2.cloudflarestorage.com"
+  r2_bucket_name         = var.backup_storage_bucket_name
+  r2_access_key          = var.backup_storage_access_key_id
+  r2_secret_key          = var.backup_storage_access_key
   pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
 
   standard_tags = local.standard_tags
@@ -197,8 +197,8 @@ module "aws_compute_backend" {
     MAIL_FROM_ADDRESS = "hello@paymentform.io"
     MAIL_FROM_NAME    = "Payment Form"
 
-    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
     AWS_BUCKET                  = module.cloudflare_r2.application_storage_bucket_name
     AWS_USE_PATH_STYLE_ENDPOINT = true

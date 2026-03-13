@@ -78,15 +78,15 @@ module "vpc_peering" {
   source = "../../../providers/aws/vpc-peering"
   count  = length(var.peer_vpc_ids) > 0 ? length(var.peer_vpc_ids) : 0
 
-  environment           = "prod-us"
-  requester_vpc_id      = module.paymentform_networking.vpc_id
+  environment              = "prod-us"
+  requester_vpc_id         = module.paymentform_networking.vpc_id
   requester_route_table_id = module.paymentform_networking.public_route_table_id
-  requester_vpc_cidr    = "10.0.0.0/16"
-  peer_vpc_id           = var.peer_vpc_ids[count.index]
-  peer_route_table_id   = var.peer_route_table_ids[count.index]
-  peer_vpc_cidr         = var.peer_vpc_cidrs[count.index]
-  peer_region           = var.peer_regions[count.index]
-  standard_tags         = local.standard_tags
+  requester_vpc_cidr       = "10.0.0.0/16"
+  peer_vpc_id              = var.peer_vpc_ids[count.index]
+  peer_route_table_id      = var.peer_route_table_ids[count.index]
+  peer_vpc_cidr            = var.peer_vpc_cidrs[count.index]
+  peer_region              = var.peer_regions[count.index]
+  standard_tags            = local.standard_tags
 
   providers = {
     aws      = aws
@@ -131,10 +131,10 @@ module "paymentform_security" {
 #   db_user          = var.db_username
 #   db_password      = var.db_password
 
-#   r2_endpoint            = "https://${var.r2_backup_bucket_name}.r2.cloudflarestorage.com"
-#   r2_bucket_name         = var.r2_backup_bucket_name
-#   r2_access_key          = var.r2_backup_access_key
-#   r2_secret_key          = var.r2_backup_secret_key
+#   database_backup_bucket_endpoint            = "https://${var.backup_storage_bucket_name}.r2.cloudflarestorage.com"
+#   database_backup_bucket_name         = var.backup_storage_bucket_name
+#   database_backup_bucket_access_key_id          = var.backup_storage_access_key_id
+#   r2_secret_key          = var.backup_storage_access_key
 #   pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
 
 #   standard_tags = local.standard_tags
@@ -206,11 +206,11 @@ module "postgres_database" {
   db_user          = var.db_username
   db_password      = var.db_password
 
-  r2_endpoint            = "https://${var.r2_backup_bucket_name}.r2.cloudflarestorage.com"
-  r2_bucket_name         = var.r2_backup_bucket_name
-  r2_access_key          = var.r2_backup_access_key
-  r2_secret_key          = var.r2_backup_secret_key
-  pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
+  database_backup_bucket_endpoint      = "https://${var.backup_storage_bucket_name}.r2.cloudflarestorage.com"
+  database_backup_bucket_name          = var.backup_storage_bucket_name
+  database_backup_bucket_access_key_id = var.backup_storage_access_key_id
+  database_backup_bucket_access_key    = var.backup_storage_access_key
+  pgbackrest_cipher_pass               = var.pgbackrest_cipher_pass
 
   standard_tags = local.standard_tags
   region        = local.region
@@ -319,6 +319,7 @@ module "paymentform_backend" {
     TENANT_DB_API_URL           = "https://api.turso.tech"
     TENANT_TURSO_ORG_SLUG       = var.turso_org_slug
     TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
+    TENANT_DB_AUTH_TOKEN        = var.tenant_db_auth_token
 
     SESSION_DRIVER   = "redis"
     SESSION_LIFETIME = 120
@@ -344,8 +345,8 @@ module "paymentform_backend" {
     MAIL_FROM_ADDRESS = "hello@paymentform.io"
     MAIL_FROM_NAME    = "Payment Form"
 
-    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
     AWS_BUCKET                  = module.paymentform_storage_application.bucket_name
     AWS_USE_PATH_STYLE_ENDPOINT = true
@@ -374,6 +375,8 @@ module "paymentform_backend" {
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.paymentform_kv_store.namespace_id
   }
+
+  auto_ssl                = var.auto_ssl
 }
 
 module "paymentform_renderer" {
@@ -411,18 +414,18 @@ module "paymentform_renderer" {
   alb_target_group_arn       = module.paymentform_alb.renderer_target_group_arn
 
   container_env_vars = {
-    R2_SSL_BUCKET_NAME       = module.paymentform_storage_ssl_config.bucket_name
-    R2_SSL_ENDPOINT          = module.paymentform_storage_ssl_config.bucket_domain
-    R2_SSL_ACCESS_KEY_ID     = var.r2_ssl_access_key_id
-    R2_SSL_SECRET_ACCESS_KEY = var.r2_ssl_secret_access_key
-    API_URL                  = "https://api.paymentform.io"
-    DOMAIN                   = "https://app.paymentform.io"
-    KV_STORE_BASE_URL        = module.paymentform_kv_store.kv_store_endpoint
-    KV_STORE_NAMESPACE_ID    = module.paymentform_kv_store.namespace_id
-    KV_STORE_API_TOKEN       = var.kv_store_api_token
-    STRIPE_KEY               = var.stripe_public_key
-    RESERVED_SUBDOMAINS      = "www,admin,api,app,dev,test"
-    NODE_ENV                 = "production"
+    SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
+    SSL_STORAGE_BUCKET_HOST          = module.paymentform_storage_ssl_config.bucket_domain
+    SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
+    SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    API_URL                          = "https://api.paymentform.io"
+    DOMAIN                           = "https://app.paymentform.io"
+    KV_STORE_BASE_URL                = module.paymentform_kv_store.kv_store_endpoint
+    KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
+    KV_STORE_API_TOKEN               = var.kv_store_api_token
+    STRIPE_KEY                       = var.stripe_public_key
+    RESERVED_SUBDOMAINS              = "www,admin,api,app,dev,test"
+    NODE_ENV                         = "production"
   }
 }
 
@@ -487,6 +490,7 @@ module "paymentform_alb" {
   health_check_path          = "/health"
   enable_deletion_protection = true
   api_hostname               = "api.paymentform.io"
+  ssl_certificate_arn        = var.ssl_certificate_arn
 
   standard_tags = local.standard_tags
 }

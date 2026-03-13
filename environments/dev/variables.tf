@@ -39,12 +39,12 @@ variable "renderer_container_image" {
   default = "ghcr.io/your-org/paymentform-renderer:latest"
 }
 
-variable "r2_ssl_access_key_id" {
+variable "ssl_storage_access_key_id" {
   type      = string
   sensitive = true
 }
 
-variable "r2_ssl_secret_access_key" {
+variable "ssl_storage_secret_access_key" {
   type      = string
   sensitive = true
 }
@@ -149,12 +149,12 @@ variable "mail_password" {
   sensitive = true
 }
 
-variable "aws_access_key_id" {
+variable "upload_storage_access_key_id" {
   type      = string
   sensitive = true
 }
 
-variable "aws_secret_access_key" {
+variable "upload_storage_secret_access_key" {
   type      = string
   sensitive = true
 }

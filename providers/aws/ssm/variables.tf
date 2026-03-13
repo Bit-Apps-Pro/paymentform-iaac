@@ -53,13 +53,13 @@ variable "mail_password" {
   sensitive   = true
 }
 
-variable "aws_access_key_id" {
+variable "upload_storage_access_key_id" {
   description = "AWS access key ID used by backend services"
   type        = string
   sensitive   = true
 }
 
-variable "aws_secret_access_key" {
+variable "upload_storage_secret_access_key" {
   description = "AWS secret access key used by backend services"
   type        = string
   sensitive   = true

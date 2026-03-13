@@ -41,7 +41,7 @@ locals {
 }
 
 module "aws_networking" {
-  source = "../../providers/aws/networking"
+  source = "../../../providers/aws/networking"
 
   environment         = "prod-au"
   region              = local.region
@@ -52,7 +52,7 @@ module "aws_networking" {
 }
 
 module "aws_security" {
-  source = "../../providers/aws/security"
+  source = "../../../providers/aws/security"
 
   environment            = "prod-au"
   vpc_id                 = module.aws_networking.vpc_id
@@ -62,9 +62,10 @@ module "aws_security" {
 }
 
 module "aws_database" {
-  source = "../../providers/aws/database"
+  source = "../../../providers/aws/database"
 
   environment       = "prod-au"
+  name              = "${local.resource_prefix}-db"
   ami_id            = var.postgres_ami_id
   subnet_ids        = module.aws_networking.public_subnet_ids
   security_group_id = module.aws_security.postgresql_security_group_id
@@ -81,11 +82,11 @@ module "aws_database" {
   db_user          = var.db_username
   db_password      = var.db_password
 
-  r2_endpoint            = "https://${var.r2_backup_bucket_name}.r2.cloudflarestorage.com"
-  r2_bucket_name         = var.r2_backup_bucket_name
-  r2_access_key          = var.r2_backup_access_key
-  r2_secret_key          = var.r2_backup_secret_key
-  pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
+  database_backup_bucket_endpoint      = "https://${var.backup_storage_bucket_name}.r2.cloudflarestorage.com"
+  database_backup_bucket_name          = var.backup_storage_bucket_name
+  database_backup_bucket_access_key_id = var.backup_storage_access_key_id
+  database_backup_bucket_access_key    = var.backup_storage_access_key
+  pgbackrest_cipher_pass               = var.pgbackrest_cipher_pass
 
   standard_tags = local.standard_tags
   region        = local.region
@@ -93,7 +94,8 @@ module "aws_database" {
 }
 
 module "aws_valkey" {
-  source = "../../providers/aws/valkey"
+  source = "../../../providers/aws/valkey"
+  name   = "${local.resource_prefix}-valkey"
 
   environment       = "prod-au"
   ami_id            = var.valkey_ami_id
@@ -112,7 +114,7 @@ module "aws_valkey" {
 }
 
 module "aws_compute_backend" {
-  source = "../../providers/aws/compute"
+  source = "../../../providers/aws/compute"
 
   environment                = "prod-au"
   instance_prefix            = "prod-au-backend"
@@ -197,8 +199,8 @@ module "aws_compute_backend" {
     MAIL_FROM_ADDRESS = "hello@paymentform.io"
     MAIL_FROM_NAME    = "Payment Form"
 
-    AWS_ACCESS_KEY_ID           = var.aws_access_key_id
-    AWS_SECRET_ACCESS_KEY       = var.aws_secret_access_key
+    AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
+    AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
     AWS_BUCKET                  = module.cloudflare_r2.application_storage_bucket_name
     AWS_USE_PATH_STYLE_ENDPOINT = true
@@ -230,7 +232,7 @@ module "aws_compute_backend" {
 }
 
 module "cloudflare_r2" {
-  source = "../../providers/cloudflare/r2"
+  source = "../../../providers/cloudflare/r2"
 
   environment           = "prod-au"
   resource_prefix       = local.resource_prefix
@@ -252,7 +254,7 @@ module "cloudflare_r2" {
 }
 
 module "cloudflare_kv_tenants" {
-  source = "../../providers/cloudflare/kv"
+  source = "../../../providers/cloudflare/kv"
 
   environment           = "prod-au"
   resource_prefix       = local.resource_prefix

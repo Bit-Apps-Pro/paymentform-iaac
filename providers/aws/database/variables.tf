@@ -102,27 +102,27 @@ variable "db_password" {
   default     = ""
 }
 
-variable "r2_endpoint" {
+variable "database_backup_bucket_endpoint" {
   description = "R2/S3 endpoint for pgbackrest backups"
   type        = string
   default     = "https://paymentform-backups.r2.cloudflarestorage.com"
 }
 
-variable "r2_bucket_name" {
+variable "database_backup_bucket_name" {
   description = "R2/S3 bucket name for pgbackrest backups"
   type        = string
   default     = "paymentform-backups"
 }
 
-variable "r2_access_key" {
-  description = "R2/S3 access key for pgbackrest"
+variable "database_backup_bucket_access_key_id" {
+  description = "R2/S3 access key id for pgbackrest"
   type        = string
   sensitive   = true
   default     = ""
 }
 
-variable "r2_secret_key" {
-  description = "R2/S3 secret key for pgbackrest"
+variable "database_backup_bucket_access_key" {
+  description = "R2/S3 access key for pgbackrest"
   type        = string
   sensitive   = true
   default     = ""

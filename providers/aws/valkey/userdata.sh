@@ -12,8 +12,9 @@ dnf install -y valkey
 mkdir -p /etc/valkey
 cat > /etc/valkey/valkey.conf <<EOF
 bind 0.0.0.0
-protected-mode no
+protected-mode yes
 port 6379
+requirepass ${cluster_password}
 tcp-backlog 511
 timeout 0
 tcp-keepalive 300

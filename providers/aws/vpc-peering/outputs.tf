@@ -3,7 +3,7 @@ output "peering_connection_id" {
   value       = aws_vpc_peering_connection.peer.id
 }
 
-output "peering_status" {
+output "peering_vpc_id" {
   description = "Status of the VPC peering connection"
-  value       = aws_vpc_peering_connection.peer.status
+  value       = aws_vpc_peering_connection.peer.peer_vpc_id
 }

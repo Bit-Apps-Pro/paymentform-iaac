@@ -122,7 +122,7 @@ resource "aws_lb_target_group" "renderer" {
   )
 }
 
-# ALB Listener
+# ALB Listener - HTTP (port 80) for renderer only
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
@@ -134,22 +134,25 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# ALB Listener - HTTPS (port 443) for backend only
 resource "aws_lb_listener" "https" {
   count             = var.ssl_certificate_arn != "" ? 1 : 0
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
-  protocol          = "HTTP"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.ssl_certificate_arn
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.renderer.arn
+    target_group_arn = aws_lb_target_group.main.arn
   }
 }
 
 resource "aws_lb_listener_rule" "backend_host_rule" {
-  count = var.api_hostname != "" ? 1 : 0
+  count = var.api_hostname != "" && var.ssl_certificate_arn != "" ? 1 : 0
 
-  listener_arn = var.ssl_certificate_arn != "" ? aws_lb_listener.https[0].arn : aws_lb_listener.http.arn
+  listener_arn = aws_lb_listener.https[0].arn
   priority     = 100
 
   action {

@@ -37,8 +37,8 @@ export TF_VAR_ghcr_token="$GHCR_TOKEN"
 # ----------------------------------------------------------------------------
 export TF_VAR_r2_bucket_name="paymentform-uploads"
 export TF_VAR_r2_ssl_bucket_name="paymentform-ssl-config"
-export TF_VAR_r2_ssl_access_key_id="$R2_SSL_ACCESS_KEY_ID"
-export TF_VAR_r2_ssl_secret_access_key="$R2_SSL_SECRET_ACCESS_KEY"
+export TF_VAR_ssl_storage_access_key_id="$R2_SSL_ACCESS_KEY_ID"
+export TF_VAR_ssl_storage_secret_access_key="$R2_SSL_SECRET_ACCESS_KEY"
 
 # ----------------------------------------------------------------------------
 # KV Store Configuration
@@ -71,8 +71,8 @@ export TF_VAR_pgadmin_default_password="$PGADMIN_PASSWORD"
 export TF_VAR_tenant_db_auth_token="$TENANT_DB_AUTH_TOKEN"
 export TF_VAR_tenant_db_encryption_key="$TENANT_DB_ENCRYPTION_KEY"
 export TF_VAR_mail_password="$MAIL_PASSWORD"
-export TF_VAR_aws_access_key_id="$AWS_ACCESS_KEY_ID"
-export TF_VAR_aws_secret_access_key="$AWS_SECRET_ACCESS_KEY"
+export TF_VAR_upload_storage_access_key_id="$AWS_ACCESS_KEY_ID"
+export TF_VAR_upload_storage_secret_access_key="$AWS_SECRET_ACCESS_KEY"
 export TF_VAR_google_client_secret="$GOOGLE_CLIENT_SECRET"
 export TF_VAR_stripe_public_key="pk_test_..."
 export TF_VAR_stripe_secret="$STRIPE_SECRET"

@@ -168,3 +168,9 @@ variable "alb_target_group_arn" {
   type        = string
   default     = ""
 }
+
+variable "auto_ssl" {
+  description = "Enable AUTO_SSL in Caddy (true = HTTPS with auto SSL, false = HTTP only)"
+  type        = bool
+  default     = true
+}

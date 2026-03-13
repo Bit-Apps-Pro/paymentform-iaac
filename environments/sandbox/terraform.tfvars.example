@@ -15,8 +15,8 @@ client_container_image   = "ghcr.io/your-org/paymentform-client:latest"
 renderer_container_image = "ghcr.io/your-org/paymentform-renderer:latest"
 
 # R2 SSL Config
-r2_ssl_access_key_id     = "YOUR_R2_ACCESS_KEY"
-r2_ssl_secret_access_key = "YOUR_R2_SECRET_KEY"
+ssl_storage_access_key_id     = "YOUR_R2_ACCESS_KEY"
+ssl_storage_secret_access_key = "YOUR_R2_SECRET_KEY"
 
 # KV Store
 kv_store_api_token = "YOUR_KV_TOKEN"
@@ -34,8 +34,8 @@ pgadmin_default_password = "your-pgadmin-password"
 tenant_db_auth_token     = "your-tenant-jwt"
 tenant_db_encryption_key = "your-encryption-key"
 mail_password            = "your-smtp-password"
-aws_access_key_id        = "YOUR_AWS_KEY"
-aws_secret_access_key    = "YOUR_AWS_SECRET"
+upload_storage_access_key_id        = "YOUR_AWS_KEY"
+upload_storage_secret_access_key    = "YOUR_AWS_SECRET"
 google_client_secret     = "your-google-secret"
 stripe_secret            = "sk_test_..."
 stripe_client_id         = "ca_..."

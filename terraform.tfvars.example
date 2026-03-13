@@ -59,8 +59,8 @@ r2_bucket_name = "paymentform-uploads"
 
 # SSL config bucket for Caddy certificates (renderer container)
 r2_ssl_bucket_name       = "paymentform-ssl-config"
-r2_ssl_access_key_id     = "YOUR_R2_SSL_ACCESS_KEY"
-r2_ssl_secret_access_key = "YOUR_R2_SSL_SECRET_KEY"
+ssl_storage_access_key_id     = "YOUR_R2_SSL_ACCESS_KEY"
+ssl_storage_secret_access_key = "YOUR_R2_SSL_SECRET_KEY"
 
 # Worker for public file serving (optional)
 worker_enabled       = true
@@ -90,8 +90,8 @@ pgadmin_default_password     = "your_pgadmin_password"
 tenant_db_auth_token         = "your_tenant_db_jwt"
 tenant_db_encryption_key     = "your_encryption_key"
 mail_password                = "your_smtp_password"
-aws_access_key_id            = "YOUR_AWS_ACCESS_KEY"
-aws_secret_access_key        = "YOUR_AWS_SECRET_KEY"
+upload_storage_access_key_id            = "YOUR_AWS_ACCESS_KEY"
+upload_storage_secret_access_key        = "YOUR_AWS_SECRET_KEY"
 google_client_secret         = "your_google_oauth_secret"
 stripe_secret                = "sk_test_your_stripe_secret"
 stripe_client_id             = "ca_your_stripe_client_id"

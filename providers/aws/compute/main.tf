@@ -39,6 +39,7 @@ resource "aws_launch_template" "compute" {
     db_name            = var.db_name
     db_password        = var.db_password
     IMAGE              = var.container_image
+    auto_ssl           = var.auto_ssl
   }))
 
   key_name      = var.key_pair_name
@@ -118,6 +119,13 @@ resource "aws_autoscaling_group" "compute" {
       key                 = tag.key
       value               = tag.value
       propagate_at_launch = true
+    }
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
     }
   }
 }
