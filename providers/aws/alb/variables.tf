@@ -41,20 +41,26 @@ variable "enable_deletion_protection" {
   default     = false
 }
 
+variable "enable_http_listener" {
+  description = "Enable HTTP listener (port 80)"
+  type        = bool
+  default     = false
+}
+
 variable "ssl_certificate_arn" {
   description = "SSL certificate ARN for HTTPS listener"
   type        = string
   default     = ""
 }
 
-variable "api_hostname" {
-  description = "Hostname for API backend (e.g., api.paymentform.io)"
-  type        = string
-  default     = ""
+variable "enable_https_listener" {
+  description = "Enable HTTPS listener (requires ssl_certificate_arn)"
+  type        = bool
+  default     = false
 }
 
-variable "renderer_hostname" {
-  description = "Hostname for renderer (e.g., renderer.paymentform.io)"
+variable "api_hostname" {
+  description = "Hostname for API backend (e.g., api.paymentform.io)"
   type        = string
   default     = ""
 }

@@ -18,14 +18,9 @@ output "alb_zone_id" {
   value       = aws_lb.main.zone_id
 }
 
-output "target_group_arn" {
-  description = "ARN of the target group"
-  value       = aws_lb_target_group.main.arn
-}
-
-output "renderer_target_group_arn" {
-  description = "ARN of the renderer target group"
-  value       = aws_lb_target_group.renderer.arn
+output "backend_target_group_arn" {
+  description = "ARN of the backend target group"
+  value       = aws_lb_target_group.backend.arn
 }
 
 output "security_group_id" {

@@ -46,18 +46,19 @@ resource "terraform_data" "deploy_container" {
     local.full_container_name,
     var.cloudflare_account_id,
     var.prod_image,
-    jsonencode(var.container_env_vars)
+    jsonencode(var.container_env_vars),
+    var.instance_max_count
   ]
 
   provisioner "local-exec" {
     command = <<-EOT
       cd ${path.module} && \
-      sed -i 's#^image = .*#image = "${var.container_image}"#' wrangler.toml && \
-      sed -i 's#^max_instances = .*#max_instances = ${var.instance_max_count}#' wrangler.toml && \
-      sed -i 's#^vars = .*#vars = {${local.container_env_vars_str}}#' wrangler.toml && \
-      docker pull "ghcr.io/bit-apps-pro/${local.image}" && \
-      docker tag "ghcr.io/bit-apps-pro/${local.image}" "${local.image}" && \
-      wrangler containers push "${local.image}" && \
+      sed -i 's/^name = ".*"/name = "${var.resource_prefix}-${var.container_name}"/' wrangler.toml && \
+      sed -i 's/^account_id = ".*"/account_id = "${var.cloudflare_account_id}"/' wrangler.toml && \
+      sed -i 's/^image = ".*"/image = "${var.container_image}"/' wrangler.toml && \
+      sed -i 's/^class_name = ".*"/class_name = "${local.class_name}"/' wrangler.toml && \
+      sed -i 's/^max_instances = .*/max_instances = ${var.instance_max_count}/' wrangler.toml && \
+      wrangler containers push ${local.image} && \
       wrangler deploy --env ${var.environment}
     EOT
 

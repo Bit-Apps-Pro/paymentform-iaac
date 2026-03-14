@@ -11,6 +11,11 @@ output "alb_zone_id" {
   value = module.paymentform_alb.alb_zone_id
 }
 
+output "nlb_dns_name" {
+  description = "DNS name of the NLB for renderer"
+  value       = module.paymentform_nlb.nlb_dns_name
+}
+
 output "instance_ips" {
   value = module.paymentform_backend.instance_ips
 }

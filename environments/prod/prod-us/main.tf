@@ -111,37 +111,6 @@ module "paymentform_security" {
   cross_region_vpc_cidrs = var.peer_vpc_cidrs
 }
 
-# module "paymentform-database" {
-#   source = "../../../providers/aws/database"
-
-#   environment       = "prod-us"
-#   ami_id            = var.postgres_ami_id
-#   subnet_ids        = module.paymentform_networking.public_subnet_ids
-#   security_group_id = module.paymentform_security.postgresql_security_group_id
-
-#   primary_instance_type = "t4g.small"
-#   replica_instance_type = "t4g.micro"
-#   primary_volume_size   = 50
-#   replica_volume_size   = 30
-#   volume_type           = "gp3"
-
-#   enable_replica   = true
-#   postgres_version = "16"
-#   db_name          = var.db_database
-#   db_user          = var.db_username
-#   db_password      = var.db_password
-
-#   database_backup_bucket_endpoint            = "https://${var.backup_storage_bucket_name}.r2.cloudflarestorage.com"
-#   database_backup_bucket_name         = var.backup_storage_bucket_name
-#   database_backup_bucket_access_key_id          = var.backup_storage_access_key_id
-#   r2_secret_key          = var.backup_storage_access_key
-#   pgbackrest_cipher_pass = var.pgbackrest_cipher_pass
-
-#   standard_tags = local.standard_tags
-#   region        = local.region
-#   assign_eip    = true
-# }
-
 # =============================================================================
 # PostgreSQL (Database - Backend Service)
 # =============================================================================
@@ -280,7 +249,7 @@ module "paymentform_backend" {
   ghcr_username              = var.ghcr_username
   db_password                = var.db_password
   container_image            = var.backend_container_image
-  alb_target_group_arn       = module.paymentform_alb.target_group_arn
+  alb_target_group_arn       = module.paymentform_alb.backend_target_group_arn
   db_read_replica_hosts = concat(
     [module.postgres_database.primary_endpoint],
     var.db_read_replica_endpoints
@@ -375,8 +344,6 @@ module "paymentform_backend" {
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.paymentform_kv_store.namespace_id
   }
-
-  auto_ssl                = var.auto_ssl
 }
 
 module "paymentform_renderer" {
@@ -411,13 +378,14 @@ module "paymentform_renderer" {
   enable_pgbouncer           = false
   ghcr_username              = var.ghcr_username
   container_image            = var.renderer_container_image
-  alb_target_group_arn       = module.paymentform_alb.renderer_target_group_arn
+  alb_target_group_arn       = module.paymentform_nlb.renderer_https_target_group_arn
 
   container_env_vars = {
     SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
     SSL_STORAGE_BUCKET_HOST          = module.paymentform_storage_ssl_config.bucket_domain
     SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
     SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
     API_URL                          = "https://api.paymentform.io"
     DOMAIN                           = "https://app.paymentform.io"
     KV_STORE_BASE_URL                = module.paymentform_kv_store.kv_store_endpoint
@@ -478,6 +446,15 @@ module "paymentform_kv_store" {
   kv_store_api_token = var.kv_store_api_token
 }
 
+resource "aws_acm_certificate" "alb_ssl" {
+  domain_name       = "api.paymentform.io"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 module "paymentform_alb" {
   source = "../../../providers/aws/alb"
 
@@ -489,8 +466,23 @@ module "paymentform_alb" {
   target_port                = 80
   health_check_path          = "/health"
   enable_deletion_protection = true
+  enable_https_listener      = true
+  ssl_certificate_arn        = aws_acm_certificate.alb_ssl.arn
   api_hostname               = "api.paymentform.io"
-  ssl_certificate_arn        = var.ssl_certificate_arn
+
+  standard_tags = local.standard_tags
+}
+
+module "paymentform_nlb" {
+  source = "../../../providers/aws/nlb"
+
+  environment = "prod-us"
+  name        = "${local.resource_prefix}-nlb"
+  vpc_id      = module.paymentform_networking.vpc_id
+  subnet_ids  = module.paymentform_networking.public_subnet_ids
+
+  health_check_path          = "/health"
+  enable_deletion_protection = true
 
   standard_tags = local.standard_tags
 }
@@ -507,7 +499,7 @@ module "paymentform_client" {
 
   container_name    = "client"
   container_image   = var.client_container_image
-  container_enabled = true
+  container_enabled = false
 
   domain_name    = "app.paymentform.io"
   domain_proxied = true
@@ -550,7 +542,7 @@ module "paymenform_dns" {
   app_origin_ips = []
   # renderer_origin_ip          = module.paymentform_alb.alb_dns_name
   # app_container_endpoint      = module.paymentform_client.container_endpoint
-  renderer_container_endpoint = module.paymentform_alb.alb_dns_name
+  renderer_container_endpoint = module.paymentform_nlb.nlb_dns_name
 
   cloudflare_plan      = "free"
   enable_load_balancer = false

@@ -25,6 +25,8 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group_rule" "alb_ingress_http" {
+  count = var.enable_http_listener ? 1 : 0
+
   type              = "ingress"
   from_port         = 80
   to_port           = 80
@@ -35,6 +37,8 @@ resource "aws_security_group_rule" "alb_ingress_http" {
 }
 
 resource "aws_security_group_rule" "alb_ingress_https" {
+  count = var.enable_https_listener ? 1 : 0
+
   type              = "ingress"
   from_port         = 443
   to_port           = 443
@@ -72,11 +76,11 @@ resource "aws_lb" "main" {
   )
 }
 
-# Target Group for EC2 Backend
-resource "aws_lb_target_group" "main" {
-  name     = "${local.prefix}-tg"
+# Target Group for Backend
+resource "aws_lb_target_group" "backend" {
+  name     = "${local.prefix}-backend-tg"
   port     = var.target_port
-  protocol = "HTTP"
+  protocol = var.ssl_certificate_arn != "" ? "HTTP" : "HTTP"
   vpc_id   = var.vpc_id
 
   health_check {
@@ -92,51 +96,29 @@ resource "aws_lb_target_group" "main" {
   tags = merge(
     var.standard_tags,
     {
-      Name = "${local.prefix}-target-group"
+      Name = "${local.prefix}-backend-target-group"
     }
   )
 }
 
-# Target Group for Renderer
-resource "aws_lb_target_group" "renderer" {
-  name     = "${local.prefix}-rndr-tg"
-  port     = var.target_port
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
-    interval            = 30
-    path                = "/health"
-    matcher             = "200"
-  }
-
-  tags = merge(
-    var.standard_tags,
-    {
-      Name = "${local.prefix}-renderer-target-group"
-    }
-  )
-}
-
-# ALB Listener - HTTP (port 80) for renderer only
+# ALB Listener - HTTP (port 80)
 resource "aws_lb_listener" "http" {
+  count = var.enable_http_listener ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.renderer.arn
+    target_group_arn = aws_lb_target_group.backend.arn
   }
 }
 
-# ALB Listener - HTTPS (port 443) for backend only
+# ALB Listener - HTTPS (port 443) for backend
 resource "aws_lb_listener" "https" {
-  count             = var.ssl_certificate_arn != "" ? 1 : 0
+  count = var.enable_https_listener ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
   protocol          = "HTTPS"
@@ -145,19 +127,20 @@ resource "aws_lb_listener" "https" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.backend.arn
   }
 }
 
-resource "aws_lb_listener_rule" "backend_host_rule" {
-  count = var.api_hostname != "" && var.ssl_certificate_arn != "" ? 1 : 0
+# Route HTTPS traffic to backend based on hostname (if api_hostname specified)
+resource "aws_lb_listener_rule" "api_host_rule" {
+  count = var.api_hostname != "" && var.enable_https_listener ? 1 : 0
 
   listener_arn = aws_lb_listener.https[0].arn
   priority     = 100
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.backend.arn
   }
 
   condition {
