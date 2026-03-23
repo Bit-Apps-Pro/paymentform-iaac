@@ -35,3 +35,9 @@ variable "enable_deletion_protection" {
   type        = bool
   default     = false
 }
+
+variable "enable_backend" {
+  description = "Enable backend target groups (for API backend behind NLB)"
+  type        = bool
+  default     = false
+}

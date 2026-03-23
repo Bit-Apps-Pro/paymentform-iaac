@@ -26,9 +26,9 @@ resource "aws_vpc_peering_connection" "peer" {
 }
 
 resource "aws_vpc_peering_connection_accepter" "peer" {
-  provider              = aws.peer
+  provider                  = aws.peer
   vpc_peering_connection_id = aws_vpc_peering_connection.peer.id
-  auto_accept           = true
+  auto_accept               = true
 
   tags = merge(var.standard_tags, {
     Name        = "${var.environment}-vpc-peering-accepter"
@@ -37,14 +37,14 @@ resource "aws_vpc_peering_connection_accepter" "peer" {
 }
 
 resource "aws_route" "requester_to_peer" {
-  route_table_id         = var.requester_route_table_id
-  destination_cidr_block = var.peer_vpc_cidr
+  route_table_id            = var.requester_route_table_id
+  destination_cidr_block    = var.peer_vpc_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection.peer.id
 }
 
 resource "aws_route" "peer_to_requester" {
-  provider               = aws.peer
-  route_table_id         = var.peer_route_table_id
-  destination_cidr_block = var.requester_vpc_cidr
+  provider                  = aws.peer
+  route_table_id            = var.peer_route_table_id
+  destination_cidr_block    = var.requester_vpc_cidr
   vpc_peering_connection_id = aws_vpc_peering_connection_accepter.peer.id
 }

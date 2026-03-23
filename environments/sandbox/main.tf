@@ -59,6 +59,32 @@ module "aws_security" {
   standard_tags          = local.standard_tags
 }
 
+module "aws_nlb" {
+  source = "../../providers/aws/nlb"
+
+  environment = "sandbox"
+  name        = "sandbox-nlb"
+  vpc_id      = module.aws_networking.vpc_id
+  subnet_ids  = module.aws_networking.public_subnet_ids
+
+  health_check_path          = "/health"
+  enable_deletion_protection = false
+  enable_backend             = true
+
+  standard_tags = local.standard_tags
+}
+
+module "aws_security_nlb" {
+  source = "../../providers/aws/security"
+
+  environment            = "sandbox"
+  vpc_id                 = module.aws_networking.vpc_id
+  app_ports              = [80, 443, 8000, 3000]
+  enable_strict_security = false
+  standard_tags          = local.standard_tags
+  nlb_security_group_id  = module.aws_nlb.security_group_id
+}
+
 module "aws_database" {
   source = "../../providers/aws/database"
 
@@ -112,6 +138,11 @@ module "aws_valkey" {
 module "aws_compute_backend" {
   source = "../../providers/aws/compute"
 
+  depends_on = [
+    module.aws_nlb,
+    module.aws_security_nlb
+  ]
+
   environment                = "sandbox"
   instance_prefix            = "sandbox-backend"
   subnet_ids                 = module.aws_networking.public_subnet_ids
@@ -129,10 +160,11 @@ module "aws_compute_backend" {
   root_volume_size           = 30
   root_volume_type           = "gp3"
   ecs_cluster_name           = "paymentform-cluster-sandbox"
-  ecs_security_group_id      = module.aws_security.ecs_security_group_id
+  ecs_security_group_id      = module.aws_security_nlb.ecs_security_group_id
   region                     = "us-east-1"
   bucket_name                = module.cloudflare_r2.application_storage_bucket_name
   service_type               = "backend"
+  alb_target_group_arn       = module.aws_nlb.backend_https_target_group_arn
 
   container_env_vars = {
     APP_NAME          = "Payment Form"
@@ -218,6 +250,12 @@ module "aws_compute_backend" {
     KV_STORE_API_URL      = module.cloudflare_kv_tenants.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
+
+    SSL_STORAGE_BUCKET_NAME          = module.cloudflare_r2.ssl_config_bucket_name
+    SSL_STORAGE_BUCKET_HOST          = module.cloudflare_r2.r2_endpoint
+    SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
+    SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token
   }
 }
 
@@ -489,9 +527,9 @@ module "cloudflare_dns" {
   app_subdomain      = "app.sandbox.paymentform.io"
   renderer_subdomain = "*.sandbox.paymentform.io"
 
-  api_origin_ips              = module.aws_compute_backend.instance_ips
+  api_origin_ips              = []
   app_origin_ips              = []
-  renderer_origin_ip          = ""
+  renderer_origin_ip          = module.aws_nlb.nlb_dns_name
   app_container_endpoint      = module.cloudflare_container_client.container_endpoint
   renderer_container_endpoint = module.cloudflare_container_renderer.container_endpoint
 

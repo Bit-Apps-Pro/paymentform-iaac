@@ -100,14 +100,13 @@ module "vpc_peering" {
 module "paymentform_security" {
   source = "../../../providers/aws/security"
 
-  depends_on = [module.paymentform_alb]
-
   environment            = "prod-us"
   vpc_id                 = module.paymentform_networking.vpc_id
   app_ports              = [80, 443]
   enable_strict_security = true
   standard_tags          = local.standard_tags
   alb_security_group_id  = module.paymentform_alb.security_group_id
+  nlb_security_group_id  = module.paymentform_nlb.security_group_id
   cross_region_vpc_cidrs = var.peer_vpc_cidrs
 }
 
@@ -219,7 +218,7 @@ module "paymentform_backend" {
   source = "../../../providers/aws/compute"
 
   depends_on = [
-    module.paymentform_alb,
+    module.paymentform_nlb,
     module.paymentform_security
   ]
 
@@ -249,7 +248,7 @@ module "paymentform_backend" {
   ghcr_username              = var.ghcr_username
   db_password                = var.db_password
   container_image            = var.backend_container_image
-  alb_target_group_arn       = module.paymentform_alb.backend_target_group_arn
+  alb_target_group_arn       = module.paymentform_nlb.backend_https_target_group_arn
   db_read_replica_hosts = concat(
     [module.postgres_database.primary_endpoint],
     var.db_read_replica_endpoints
@@ -343,6 +342,12 @@ module "paymentform_backend" {
     KV_STORE_API_URL      = module.paymentform_kv_store.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.paymentform_kv_store.namespace_id
+
+    SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
+    SSL_STORAGE_BUCKET_HOST          = module.paymentform_storage_ssl_config.bucket_domain
+    SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
+    SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
   }
 }
 
@@ -455,6 +460,9 @@ resource "aws_acm_certificate" "alb_ssl" {
   }
 }
 
+# ALB kept for reference only - backend now uses NLB
+# The ALB security group is still referenced by the security module
+# but no traffic is routed through it for the backend service
 module "paymentform_alb" {
   source = "../../../providers/aws/alb"
 
@@ -466,9 +474,9 @@ module "paymentform_alb" {
   target_port                = 80
   health_check_path          = "/health"
   enable_deletion_protection = true
-  enable_https_listener      = true
-  ssl_certificate_arn        = aws_acm_certificate.alb_ssl.arn
-  api_hostname               = "api.paymentform.io"
+  enable_https_listener      = false
+  ssl_certificate_arn        = ""
+  api_hostname               = ""
 
   standard_tags = local.standard_tags
 }
@@ -483,6 +491,7 @@ module "paymentform_nlb" {
 
   health_check_path          = "/health"
   enable_deletion_protection = true
+  enable_backend             = true
 
   standard_tags = local.standard_tags
 }
@@ -538,10 +547,8 @@ module "paymenform_dns" {
   app_subdomain      = "app.paymentform.io"
   renderer_subdomain = "*.paymentform.io"
 
-  api_cname      = module.paymentform_alb.alb_dns_name
-  app_origin_ips = []
-  # renderer_origin_ip          = module.paymentform_alb.alb_dns_name
-  # app_container_endpoint      = module.paymentform_client.container_endpoint
+  api_cname                   = module.paymentform_nlb.nlb_dns_name
+  app_origin_ips              = []
   renderer_container_endpoint = module.paymentform_nlb.nlb_dns_name
 
   cloudflare_plan      = "free"

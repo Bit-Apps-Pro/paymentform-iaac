@@ -73,3 +73,9 @@ variable "alb_security_group_id" {
   type        = string
   default     = ""
 }
+
+variable "nlb_security_group_id" {
+  description = "NLB security group ID to allow traffic from (for NLB → EC2 communication)"
+  type        = string
+  default     = ""
+}

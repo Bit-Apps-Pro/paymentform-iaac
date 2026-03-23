@@ -122,6 +122,60 @@ resource "aws_lb_target_group" "renderer_http" {
   )
 }
 
+# Target Group for Backend (HTTPS - port 443)
+resource "aws_lb_target_group" "backend_https" {
+  count = var.enable_backend ? 1 : 0
+
+  name     = "${local.prefix}-bknd-tg"
+  port     = 443
+  protocol = "TCP"
+  vpc_id   = var.vpc_id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 10
+    interval            = 30
+    port                = "443"
+    matcher             = "200"
+  }
+
+  tags = merge(
+    var.standard_tags,
+    {
+      Name = "${local.prefix}-bknd-s-tg"
+    }
+  )
+}
+
+# Target Group for Backend (HTTP - port 80)
+resource "aws_lb_target_group" "backend_http" {
+  count = var.enable_backend ? 1 : 0
+
+  name     = "${local.prefix}-bknd-tg"
+  port     = 80
+  protocol = "TCP"
+  vpc_id   = var.vpc_id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 10
+    interval            = 30
+    port                = "80"
+    matcher             = "200"
+  }
+
+  tags = merge(
+    var.standard_tags,
+    {
+      Name = "${local.prefix}-bknd-tg"
+    }
+  )
+}
+
 # NLB Listener - TCP 443 (HTTPS passthrough)
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
@@ -143,5 +197,33 @@ resource "aws_lb_listener" "http" {
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.renderer_http.arn
+  }
+}
+
+# Backend HTTPS Listener (TCP 8443 -> backend 443)
+resource "aws_lb_listener" "backend_https" {
+  count = var.enable_backend ? 1 : 0
+
+  load_balancer_arn = aws_lb.main.arn
+  port              = "8443"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend_https[0].arn
+  }
+}
+
+# Backend HTTP Listener (TCP 8080 -> backend 80)
+resource "aws_lb_listener" "backend_http" {
+  count = var.enable_backend ? 1 : 0
+
+  load_balancer_arn = aws_lb.main.arn
+  port              = "8080"
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend_http[0].arn
   }
 }

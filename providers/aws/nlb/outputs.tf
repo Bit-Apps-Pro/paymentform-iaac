@@ -28,6 +28,16 @@ output "renderer_http_target_group_arn" {
   value       = aws_lb_target_group.renderer_http.arn
 }
 
+output "backend_https_target_group_arn" {
+  description = "ARN of the backend HTTPS target group (port 443)"
+  value       = aws_lb_target_group.backend_https[0].arn
+}
+
+output "backend_http_target_group_arn" {
+  description = "ARN of the backend HTTP target group (port 80)"
+  value       = aws_lb_target_group.backend_http[0].arn
+}
+
 output "security_group_id" {
   description = "ID of the NLB security group"
   value       = aws_security_group.nlb.id

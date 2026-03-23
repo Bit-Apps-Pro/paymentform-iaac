@@ -45,6 +45,7 @@ resource "aws_security_group_rule" "ecs_ingress_https" {
 
 # Allow HTTP/HTTPS from ALB security group
 resource "aws_security_group_rule" "ecs_ingress_from_alb" {
+  count                    = var.alb_security_group_id != "" ? 1 : 0
   type                     = "ingress"
   from_port                = 80
   to_port                  = 443
@@ -54,16 +55,28 @@ resource "aws_security_group_rule" "ecs_ingress_from_alb" {
   description              = "Allow HTTP/HTTPS from ALB"
 }
 
+# Allow HTTP/HTTPS from NLB security group
+resource "aws_security_group_rule" "ecs_ingress_from_nlb" {
+  count                    = var.nlb_security_group_id != "" ? 1 : 0
+  type                     = "ingress"
+  from_port                = 80
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = var.nlb_security_group_id
+  security_group_id        = aws_security_group.ecs.id
+  description              = "Allow HTTP/HTTPS from NLB"
+}
+
 # Additional inbound rules for application ports - only from itself (for pgbouncer)
 resource "aws_security_group_rule" "ecs_ingress_app_ports" {
-  count             = length(var.app_ports) > 0 ? length(var.app_ports) : 0
-  type              = "ingress"
-  from_port         = var.app_ports[count.index]
-  to_port           = var.app_ports[count.index]
-  protocol          = "tcp"
+  count                    = length(var.app_ports) > 0 ? length(var.app_ports) : 0
+  type                     = "ingress"
+  from_port                = var.app_ports[count.index]
+  to_port                  = var.app_ports[count.index]
+  protocol                 = "tcp"
   source_security_group_id = aws_security_group.ecs.id
   security_group_id        = aws_security_group.ecs.id
-  description       = "Allow traffic on app port ${var.app_ports[count.index]} from ECS"
+  description              = "Allow traffic on app port ${var.app_ports[count.index]} from ECS"
 }
 
 # Outbound rules for EC2/Traefik
@@ -305,7 +318,7 @@ resource "aws_iam_role" "ecs_task_role" {
 
 # Policy for accessing Secrets Manager (Neon API key, Turso token)
 resource "aws_iam_policy" "secrets_manager_access" {
-  count = var.neon_api_key_secret_arn != "" || var.turso_token_secret_arn != "" ? 1 : 0
+  count       = var.neon_api_key_secret_arn != "" || var.turso_token_secret_arn != "" ? 1 : 0
   name        = "${var.environment}-secrets-manager-access-policy"
   description = "Policy for accessing secrets in Secrets Manager"
 
@@ -328,7 +341,7 @@ resource "aws_iam_policy" "secrets_manager_access" {
 }
 
 resource "aws_iam_role_policy_attachment" "secrets_manager_policy_attachment" {
-  count = var.neon_api_key_secret_arn != "" || var.turso_token_secret_arn != "" ? 1 : 0
+  count      = var.neon_api_key_secret_arn != "" || var.turso_token_secret_arn != "" ? 1 : 0
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = aws_iam_policy.secrets_manager_access[0].arn
 }

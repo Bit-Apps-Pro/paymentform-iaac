@@ -116,6 +116,11 @@ module "aws_valkey" {
 module "aws_compute_backend" {
   source = "../../../providers/aws/compute"
 
+  depends_on = [
+    module.aws_nlb,
+    module.aws_security_nlb
+  ]
+
   environment                = "prod-au"
   instance_prefix            = "prod-au-backend"
   subnet_ids                 = module.aws_networking.public_subnet_ids
@@ -133,7 +138,7 @@ module "aws_compute_backend" {
   root_volume_size           = 50
   root_volume_type           = "gp3"
   ecs_cluster_name           = "paymentform-cluster-prod-au"
-  ecs_security_group_id      = module.aws_security.ecs_security_group_id
+  ecs_security_group_id      = module.aws_security_nlb.ecs_security_group_id
   region                     = local.region
   bucket_name                = module.cloudflare_r2.application_storage_bucket_name
   service_type               = "backend"
@@ -144,6 +149,7 @@ module "aws_compute_backend" {
     [module.aws_database.primary_endpoint],
     var.db_read_replica_endpoints
   )
+  alb_target_group_arn = module.aws_nlb.backend_https_target_group_arn
 
   container_env_vars = {
     APP_NAME          = "Payment Form"
@@ -228,6 +234,12 @@ module "aws_compute_backend" {
     KV_STORE_API_URL      = module.cloudflare_kv_tenants.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.cloudflare_kv_tenants.namespace_id
+
+    SSL_STORAGE_BUCKET_NAME          = module.cloudflare_ssl_config.bucket_name
+    SSL_STORAGE_BUCKET_HOST          = module.cloudflare_ssl_config.bucket_domain
+    SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
+    SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token
   }
 }
 
@@ -264,6 +276,42 @@ module "cloudflare_kv_tenants" {
 
   namespace_name    = "tenants"
   namespace_enabled = true
+}
+
+module "cloudflare_ssl_config" {
+  source = "../../../providers/cloudflare/r2/ssl-config"
+
+  environment           = "prod-au"
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  r2_bucket_name        = "prod-paymentform-ssl-config"
+  enabled               = true
+}
+
+module "aws_nlb" {
+  source = "../../../providers/aws/nlb"
+
+  environment = "prod-au"
+  name        = "prod-au-nlb"
+  vpc_id      = module.aws_networking.vpc_id
+  subnet_ids  = module.aws_networking.public_subnet_ids
+
+  health_check_path          = "/health"
+  enable_deletion_protection = true
+  enable_backend             = true
+
+  standard_tags = local.standard_tags
+}
+
+module "aws_security_nlb" {
+  source = "../../../providers/aws/security"
+
+  environment            = "prod-au"
+  vpc_id                 = module.aws_networking.vpc_id
+  app_ports              = [80, 443, 8000, 3000]
+  enable_strict_security = true
+  standard_tags          = local.standard_tags
+  nlb_security_group_id  = module.aws_nlb.security_group_id
 }
 
 output "region" {
