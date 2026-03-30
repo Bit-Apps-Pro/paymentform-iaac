@@ -105,8 +105,10 @@ module "paymentform_security" {
   app_ports              = [80, 443]
   enable_strict_security = true
   standard_tags          = local.standard_tags
-  alb_security_group_id  = module.paymentform_alb.security_group_id
-  nlb_security_group_id  = module.paymentform_nlb.security_group_id
+  nlb_security_group_ids = [
+    module.paymentform_nlb_backend.security_group_id,
+    module.paymentform_nlb_renderer.security_group_id,
+  ]
   cross_region_vpc_cidrs = var.peer_vpc_cidrs
 }
 
@@ -199,17 +201,20 @@ module "paymentform_cache" {
 
   environment       = "prod-us"
   name              = "${local.resource_prefix}-cache"
+  region            = local.region
   ami_id            = var.valkey_ami_id
   subnet_ids        = module.paymentform_networking.public_subnet_ids
   security_group_id = module.paymentform_security.valkey_security_group_id
 
-  instance_type = "t4g.small"
+  # node_count = 1 → standalone mode (no cluster-enabled).
+  # Upgrade to t4g.medium for more usable RAM without cluster overhead.
+  instance_type = "t4g.medium"
   node_count    = 1
   volume_size   = 20
   volume_type   = "gp3"
 
   cluster_password = var.redis_password
-  memory_max       = "512mb"
+  memory_max       = "1gb"
 
   standard_tags = local.standard_tags
 }
@@ -218,7 +223,7 @@ module "paymentform_backend" {
   source = "../../../providers/aws/compute"
 
   depends_on = [
-    module.paymentform_nlb,
+    module.paymentform_nlb_backend,
     module.paymentform_security
   ]
 
@@ -243,22 +248,16 @@ module "paymentform_backend" {
   region                     = local.region
   bucket_name                = module.paymentform_storage_application.bucket_name
   service_type               = "backend"
-  enable_pgbouncer           = true
-  db_name                    = var.db_database
   ghcr_username              = var.ghcr_username
-  db_password                = var.db_password
   container_image            = var.backend_container_image
-  alb_target_group_arn       = module.paymentform_nlb.backend_https_target_group_arn
-  db_read_replica_hosts = concat(
-    [module.postgres_database.primary_endpoint],
-    var.db_read_replica_endpoints
-  )
+  alb_target_group_arn       = module.paymentform_nlb_backend.https_target_group_arn
 
   container_env_vars = {
     APP_NAME          = "Payment Form"
     APP_ENV           = "production"
     APP_URL           = "https://api.paymentform.io"
     APP_BASE_DOMAIN   = "paymentform.io"
+    APP_DOMAIN        = "api.paymentform.io"
     FRONTEND_URL      = "https://app.paymentform.io"
     FRONTEND_DASH_URL = "https://app.paymentform.io/myforms"
     APP_KEY           = var.app_key
@@ -275,10 +274,10 @@ module "paymentform_backend" {
     LOG_LEVEL                = "error"
 
     DB_CONNECTION = "pgsql"
-    DB_HOST       = "127.0.0.1"
-    DB_HOST_WRITE = "127.0.0.1"
+    DB_HOST       = module.postgres_database.primary_endpoint
+    DB_HOST_WRITE = module.postgres_database.primary_endpoint
     DB_HOST_READ  = length(var.db_read_replica_endpoints) > 0 ? var.db_read_replica_endpoints[0] : module.postgres_database.primary_endpoint
-    DB_PORT       = 6432
+    DB_PORT       = 5432
     DB_DATABASE   = var.db_database
     DB_USERNAME   = var.db_username
     DB_PASSWORD   = var.db_password
@@ -355,7 +354,7 @@ module "paymentform_renderer" {
   source = "../../../providers/aws/compute"
 
   depends_on = [
-    module.paymentform_alb,
+    module.paymentform_nlb_renderer,
     module.paymentform_security
   ]
 
@@ -380,10 +379,9 @@ module "paymentform_renderer" {
   region                     = local.region
   bucket_name                = module.paymentform_storage_application.bucket_name
   service_type               = "renderer"
-  enable_pgbouncer           = false
   ghcr_username              = var.ghcr_username
   container_image            = var.renderer_container_image
-  alb_target_group_arn       = module.paymentform_nlb.renderer_https_target_group_arn
+  alb_target_group_arn       = module.paymentform_nlb_renderer.https_target_group_arn
 
   container_env_vars = {
     SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
@@ -451,49 +449,31 @@ module "paymentform_kv_store" {
   kv_store_api_token = var.kv_store_api_token
 }
 
-resource "aws_acm_certificate" "alb_ssl" {
-  domain_name       = "api.paymentform.io"
-  validation_method = "DNS"
 
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# ALB kept for reference only - backend now uses NLB
-# The ALB security group is still referenced by the security module
-# but no traffic is routed through it for the backend service
-module "paymentform_alb" {
-  source = "../../../providers/aws/alb"
-
-  environment = "prod-us"
-  name        = "${local.resource_prefix}-alb"
-  vpc_id      = module.paymentform_networking.vpc_id
-  subnet_ids  = module.paymentform_networking.public_subnet_ids
-
-  target_port                = 80
-  health_check_path          = "/health"
-  enable_deletion_protection = true
-  enable_https_listener      = false
-  ssl_certificate_arn        = ""
-  api_hostname               = ""
-
-  standard_tags = local.standard_tags
-}
-
-module "paymentform_nlb" {
+# NLB for backend API - api.paymentform.io → port 80/443 → backend containers
+module "paymentform_nlb_backend" {
   source = "../../../providers/aws/nlb"
 
-  environment = "prod-us"
-  name        = "${local.resource_prefix}-nlb"
-  vpc_id      = module.paymentform_networking.vpc_id
-  subnet_ids  = module.paymentform_networking.public_subnet_ids
-
-  health_check_path          = "/health"
+  environment                = "prod-us"
+  prefix                     = "${local.resource_prefix}-backend"
+  service_label              = "bknd"
+  vpc_id                     = module.paymentform_networking.vpc_id
+  subnet_ids                 = module.paymentform_networking.public_subnet_ids
   enable_deletion_protection = true
-  enable_backend             = true
+  standard_tags              = local.standard_tags
+}
 
-  standard_tags = local.standard_tags
+# NLB for renderer - *.paymentform.io → port 80/443 → renderer containers
+module "paymentform_nlb_renderer" {
+  source = "../../../providers/aws/nlb"
+
+  environment                = "prod-us"
+  prefix                     = "${local.resource_prefix}-renderer"
+  service_label              = "rndr"
+  vpc_id                     = module.paymentform_networking.vpc_id
+  subnet_ids                 = module.paymentform_networking.public_subnet_ids
+  enable_deletion_protection = true
+  standard_tags              = local.standard_tags
 }
 
 module "paymentform_client" {
@@ -547,9 +527,9 @@ module "paymenform_dns" {
   app_subdomain      = "app.paymentform.io"
   renderer_subdomain = "*.paymentform.io"
 
-  api_cname                   = module.paymentform_nlb.nlb_dns_name
+  api_cname                   = module.paymentform_nlb_backend.nlb_dns_name
   app_origin_ips              = []
-  renderer_container_endpoint = module.paymentform_nlb.nlb_dns_name
+  renderer_container_endpoint = module.paymentform_nlb_renderer.nlb_dns_name
 
   cloudflare_plan      = "free"
   enable_load_balancer = false

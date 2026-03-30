@@ -43,28 +43,16 @@ resource "aws_security_group_rule" "ecs_ingress_https" {
   description       = "Allow HTTPS from Cloudflare"
 }
 
-# Allow HTTP/HTTPS from ALB security group
-resource "aws_security_group_rule" "ecs_ingress_from_alb" {
-  count                    = var.alb_security_group_id != "" ? 1 : 0
-  type                     = "ingress"
-  from_port                = 80
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = var.alb_security_group_id
-  security_group_id        = aws_security_group.ecs.id
-  description              = "Allow HTTP/HTTPS from ALB"
-}
-
-# Allow HTTP/HTTPS from NLB security group
+# Allow HTTP/HTTPS from each NLB security group
 resource "aws_security_group_rule" "ecs_ingress_from_nlb" {
-  count                    = var.nlb_security_group_id != "" ? 1 : 0
+  count                    = length(var.nlb_security_group_ids)
   type                     = "ingress"
   from_port                = 80
   to_port                  = 443
   protocol                 = "tcp"
-  source_security_group_id = var.nlb_security_group_id
+  source_security_group_id = var.nlb_security_group_ids[count.index]
   security_group_id        = aws_security_group.ecs.id
-  description              = "Allow HTTP/HTTPS from NLB"
+  description              = "Allow HTTP/HTTPS from NLB ${count.index}"
 }
 
 # Additional inbound rules for application ports - only from itself (for pgbouncer)

@@ -14,28 +14,18 @@ output "nlb_dns_name" {
 }
 
 output "nlb_zone_id" {
-  description = "Zone ID of the NLB"
+  description = "Zone ID of the NLB (for Route53 alias records)"
   value       = aws_lb.main.zone_id
 }
 
-output "renderer_https_target_group_arn" {
-  description = "ARN of the renderer HTTPS target group (port 443)"
-  value       = aws_lb_target_group.renderer_https.arn
+output "https_target_group_arn" {
+  description = "ARN of the HTTPS target group (port 443)"
+  value       = aws_lb_target_group.https.arn
 }
 
-output "renderer_http_target_group_arn" {
-  description = "ARN of the renderer HTTP target group (port 80)"
-  value       = aws_lb_target_group.renderer_http.arn
-}
-
-output "backend_https_target_group_arn" {
-  description = "ARN of the backend HTTPS target group (port 443)"
-  value       = aws_lb_target_group.backend_https[0].arn
-}
-
-output "backend_http_target_group_arn" {
-  description = "ARN of the backend HTTP target group (port 80)"
-  value       = aws_lb_target_group.backend_http[0].arn
+output "http_target_group_arn" {
+  description = "ARN of the HTTP target group (port 80)"
+  value       = aws_lb_target_group.http.arn
 }
 
 output "security_group_id" {

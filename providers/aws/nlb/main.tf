@@ -8,18 +8,21 @@ terraform {
 }
 
 locals {
-  prefix = var.name
+  # AWS limits: NLB name ≤32 chars, target group name ≤32 chars.
+  # Use a short env+label combo for TG names to stay well within limits.
+  # e.g. environment="prod-us", service_label="bknd" → tg_prefix="prod-us-bknd"
+  tg_prefix = "${var.environment}-${var.service_label}"
 }
 
 # Security Group for NLB
 resource "aws_security_group" "nlb" {
-  name_prefix = "${local.prefix}-nlb-sg"
+  name_prefix = "${var.prefix}-nlb-sg"
   vpc_id      = var.vpc_id
 
   tags = merge(
     var.standard_tags,
     {
-      Name = "${local.prefix}-nlb-security-group"
+      Name = "${var.prefix}-nlb-sg"
     }
   )
 }
@@ -56,7 +59,7 @@ resource "aws_security_group_rule" "nlb_egress_all" {
 
 # NLB
 resource "aws_lb" "main" {
-  name               = "${local.prefix}-nlb"
+  name               = "${var.prefix}-nlb"
   internal           = false
   load_balancer_type = "network"
   security_groups    = [aws_security_group.nlb.id]
@@ -67,14 +70,14 @@ resource "aws_lb" "main" {
   tags = merge(
     var.standard_tags,
     {
-      Name = "${local.prefix}-nlb"
+      Name = "${var.prefix}-nlb"
     }
   )
 }
 
-# Target Group for Renderer (HTTPS - port 443)
-resource "aws_lb_target_group" "renderer_https" {
-  name     = "${local.prefix}-rndrs-tg"
+# Target Group - HTTPS (port 443) - TCP passthrough, Caddy handles TLS inside container
+resource "aws_lb_target_group" "https" {
+  name     = "${local.tg_prefix}-https-tg"
   port     = 443
   protocol = "TCP"
   vpc_id   = var.vpc_id
@@ -83,23 +86,28 @@ resource "aws_lb_target_group" "renderer_https" {
     enabled             = true
     healthy_threshold   = 2
     unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 30
-    port                = "443"
+    interval            = 10
+    # Use HTTP/80 /health so the target is marked healthy as soon as Caddy is
+    # serving HTTP — before the TLS cert is issued via DNS-01 challenge.
+    # This prevents a chicken-and-egg deadlock where unhealthy targets block
+    # the port 80 traffic that the ACME challenge needs.
+    protocol            = "HTTP"
+    port                = "80"
+    path                = "/health"
     matcher             = "200"
   }
 
   tags = merge(
     var.standard_tags,
     {
-      Name = "${local.prefix}-rndr-s-tg"
+      Name = "${local.tg_prefix}-https-tg"
     }
   )
 }
 
-# Target Group for Renderer (HTTP - port 80)
-resource "aws_lb_target_group" "renderer_http" {
-  name     = "${local.prefix}-rndr-tg"
+# Target Group - HTTP (port 80) - TCP passthrough
+resource "aws_lb_target_group" "http" {
+  name     = "${local.tg_prefix}-http-tg"
   port     = 80
   protocol = "TCP"
   vpc_id   = var.vpc_id
@@ -108,75 +116,22 @@ resource "aws_lb_target_group" "renderer_http" {
     enabled             = true
     healthy_threshold   = 2
     unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 30
+    interval            = 10
+    protocol            = "HTTP"
     port                = "80"
+    path                = "/health"
     matcher             = "200"
   }
 
   tags = merge(
     var.standard_tags,
     {
-      Name = "${local.prefix}-rndr-tg"
+      Name = "${local.tg_prefix}-http-tg"
     }
   )
 }
 
-# Target Group for Backend (HTTPS - port 443)
-resource "aws_lb_target_group" "backend_https" {
-  count = var.enable_backend ? 1 : 0
-
-  name     = "${local.prefix}-bknd-tg"
-  port     = 443
-  protocol = "TCP"
-  vpc_id   = var.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 30
-    port                = "443"
-    matcher             = "200"
-  }
-
-  tags = merge(
-    var.standard_tags,
-    {
-      Name = "${local.prefix}-bknd-s-tg"
-    }
-  )
-}
-
-# Target Group for Backend (HTTP - port 80)
-resource "aws_lb_target_group" "backend_http" {
-  count = var.enable_backend ? 1 : 0
-
-  name     = "${local.prefix}-bknd-tg"
-  port     = 80
-  protocol = "TCP"
-  vpc_id   = var.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 10
-    interval            = 30
-    port                = "80"
-    matcher             = "200"
-  }
-
-  tags = merge(
-    var.standard_tags,
-    {
-      Name = "${local.prefix}-bknd-tg"
-    }
-  )
-}
-
-# NLB Listener - TCP 443 (HTTPS passthrough)
+# NLB Listener - TCP 443 → HTTPS target group
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
@@ -184,11 +139,11 @@ resource "aws_lb_listener" "https" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.renderer_https.arn
+    target_group_arn = aws_lb_target_group.https.arn
   }
 }
 
-# NLB Listener - TCP 80 (HTTP passthrough)
+# NLB Listener - TCP 80 → HTTP target group
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
@@ -196,34 +151,6 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.renderer_http.arn
-  }
-}
-
-# Backend HTTPS Listener (TCP 8443 -> backend 443)
-resource "aws_lb_listener" "backend_https" {
-  count = var.enable_backend ? 1 : 0
-
-  load_balancer_arn = aws_lb.main.arn
-  port              = "8443"
-  protocol          = "TCP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend_https[0].arn
-  }
-}
-
-# Backend HTTP Listener (TCP 8080 -> backend 80)
-resource "aws_lb_listener" "backend_http" {
-  count = var.enable_backend ? 1 : 0
-
-  load_balancer_arn = aws_lb.main.arn
-  port              = "8080"
-  protocol          = "TCP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.backend_http[0].arn
+    target_group_arn = aws_lb_target_group.http.arn
   }
 }

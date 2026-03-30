@@ -5,8 +5,6 @@ log() {
  echo "[ $(date '+%Y-%m-%d %H:%M:%S') ] $1"
 }
 
-log "Authenticating with GHCR..."
-
 authenticate_ghcr() {
   log "Authenticating with GHCR..."
   GHCR_TOKEN=$(aws ssm get-parameter \
@@ -21,52 +19,6 @@ authenticate_ghcr() {
     log "GHCR authentication successful"
   else
     log "WARNING: GHCR_TOKEN not found; public images only"
-  fi
-}
-
-configure_pgbouncer() {
-  if [ "${enable_pgbouncer}" = "true" ]; then
-    
-    mkdir -p /etc/pgbouncer /var/log/pgbouncer
-    
-    cat > /etc/pgbouncer/pgbouncer.ini <<EOF
-[databases]
-${db_name} = host=${db_host} port=5432 dbname=${db_name}
-
-[pgbouncer]
-listen_addr = 127.0.0.1
-listen_port = 6432
-auth_type = md5
-auth_file = /etc/pgbouncer/userlist.txt
-pool_mode = transaction
-max_client_conn = 100
-default_pool_size = 20
-min_pool_size = 5
-reserve_pool_size = 5
-log_connections = 0
-log_disconnections = 0
-log_pooler_errors = 1
-admin_users = postgres
-pidfile = /var/run/pgbouncer/pgbouncer.pid
-logfile = /var/log/pgbouncer/pgbouncer.log
-EOF
-
-    cat > /etc/pgbouncer/userlist.txt <<EOF
-"postgres" "${db_password}"
-EOF
-
-    # Create pgbouncer user and group if they don't exist
-    groupadd -f pgbouncer || true
-    useradd -r -g pgbouncer pgbouncer || true
-    
-    mkdir -p /var/run/pgbouncer
-    chown pgbouncer:pgbouncer /etc/pgbouncer/pgbouncer.ini /etc/pgbouncer/userlist.txt /var/run/pgbouncer
-    chmod 640 /etc/pgbouncer/pgbouncer.ini /etc/pgbouncer/userlist.txt
-    
-    pkill -f pgbouncer || true
-    sudo -u pgbouncer pgbouncer -d /etc/pgbouncer/pgbouncer.ini
-    
-    log "PgBouncer configured and started"
   fi
 }
 
@@ -85,10 +37,6 @@ docker pull ${IMAGE}
 
 docker stop paymentform-${service_type} || true
 docker rm paymentform-${service_type} || true
-
-if [ "${enable_pgbouncer}" = "true" ]; then
-  configure_pgbouncer
-fi
 
 docker run -d \
   --name paymentform-${service_type} \

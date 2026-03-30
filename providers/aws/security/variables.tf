@@ -68,14 +68,8 @@ variable "cross_region_vpc_cidrs" {
   default     = []
 }
 
-variable "alb_security_group_id" {
-  description = "ALB security group ID to allow traffic from (for ALB → EC2 communication)"
-  type        = string
-  default     = ""
-}
-
-variable "nlb_security_group_id" {
-  description = "NLB security group ID to allow traffic from (for NLB → EC2 communication)"
-  type        = string
-  default     = ""
+variable "nlb_security_group_ids" {
+  description = "List of NLB security group IDs to allow traffic from (for NLB → EC2 communication)"
+  type        = list(string)
+  default     = []
 }

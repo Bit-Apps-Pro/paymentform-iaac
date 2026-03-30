@@ -3,6 +3,12 @@ variable "environment" {
   type        = string
 }
 
+variable "region" {
+  description = "AWS region (required for SSM cluster init command)"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "name" {
   description = "Instance name prefix for resources"
   type        = string
@@ -37,9 +43,14 @@ variable "security_group_id" {
 }
 
 variable "node_count" {
-  description = "Number of Valkey nodes (3 for cluster with 1 replica each)"
+  description = "Number of Valkey nodes. Use 1 for standalone, 3+ for cluster mode."
   type        = number
-  default     = 3
+  default     = 1
+
+  validation {
+    condition     = var.node_count == 1 || var.node_count >= 3
+    error_message = "node_count must be 1 (standalone) or >= 3 (cluster). Values 2 is not valid for Valkey cluster."
+  }
 }
 
 variable "volume_size" {

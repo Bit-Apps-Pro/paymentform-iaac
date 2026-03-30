@@ -44,7 +44,7 @@ resource "cloudflare_dns_record" "api" {
   name    = var.api_subdomain
   content = local.api_target
   type    = length(var.api_origin_ips) > 0 ? "A" : "CNAME"
-  proxied = true
+  proxied = false
   ttl     = 1
   comment = "API endpoint - proxied through Cloudflare"
 }

@@ -27,17 +27,11 @@ resource "aws_launch_template" "compute" {
   }
 
   user_data = base64encode(templatefile("${path.module}/userdata.sh", {
-    ecs_cluster_name   = var.ecs_cluster_name
     environment        = var.environment
     ghcr_username      = var.ghcr_username
     region             = var.region
-    bucket_name        = var.bucket_name
     service_type       = var.service_type
     container_env_vars = join("\n", [for k, v in var.container_env_vars : "${k}=${v}" if v != null])
-    enable_pgbouncer   = var.enable_pgbouncer
-    db_host            = length(var.db_read_replica_hosts) > 0 ? var.db_read_replica_hosts[0] : "localhost"
-    db_name            = var.db_name
-    db_password        = var.db_password
     IMAGE              = var.container_image
     auto_ssl           = var.auto_ssl
   }))

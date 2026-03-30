@@ -3,17 +3,14 @@ output "region" {
   value = local.region
 }
 
-output "alb_dns_name" {
-  value = module.paymentform_alb.alb_dns_name
+output "nlb_backend_dns_name" {
+  description = "DNS name of the backend NLB (api.paymentform.io target)"
+  value       = module.paymentform_nlb_backend.nlb_dns_name
 }
 
-output "alb_zone_id" {
-  value = module.paymentform_alb.alb_zone_id
-}
-
-output "nlb_dns_name" {
-  description = "DNS name of the NLB for renderer"
-  value       = module.paymentform_nlb.nlb_dns_name
+output "nlb_renderer_dns_name" {
+  description = "DNS name of the renderer NLB (*.paymentform.io target)"
+  value       = module.paymentform_nlb_renderer.nlb_dns_name
 }
 
 output "instance_ips" {
