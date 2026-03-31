@@ -236,3 +236,10 @@ variable "auto_ssl" {
   type        = bool
   default     = true
 }
+
+variable "alert_webhook_url" {
+  description = "HTTP(S) endpoint to POST to when all NLB targets remain unhealthy for 5 minutes"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

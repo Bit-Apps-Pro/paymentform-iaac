@@ -139,10 +139,10 @@ variable "container_image" {
   default     = "ghcr.io/bit-apps-pro/paymentform-backend:latest"
 }
 
-variable "alb_target_group_arn" {
-  description = "ARN of the ALB target group to attach ASG instances to"
-  type        = string
-  default     = ""
+variable "alb_target_group_arns" {
+  description = "ARNs of the target groups to attach ASG instances to (supports multiple, e.g. HTTP + HTTPS)"
+  type        = list(string)
+  default     = []
 }
 
 variable "auto_ssl" {

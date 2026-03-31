@@ -91,7 +91,7 @@ resource "aws_autoscaling_group" "compute" {
   max_size         = var.max_size
   desired_capacity = var.desired_capacity
 
-  target_group_arns = var.alb_target_group_arn != "" ? [var.alb_target_group_arn] : []
+  target_group_arns = var.alb_target_group_arns
 
   launch_template {
     id      = aws_launch_template.compute.id

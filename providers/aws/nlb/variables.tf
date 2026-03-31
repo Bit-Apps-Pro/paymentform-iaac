@@ -34,3 +34,16 @@ variable "enable_deletion_protection" {
   type        = bool
   default     = false
 }
+
+variable "alert_webhook_url" {
+  description = "HTTP endpoint to POST to when all targets are unhealthy for alert_sustained_minutes"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "alert_sustained_minutes" {
+  description = "Number of consecutive minutes all targets must be unhealthy before the webhook fires"
+  type        = number
+  default     = 5
+}

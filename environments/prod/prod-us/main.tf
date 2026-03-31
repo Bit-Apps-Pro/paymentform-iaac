@@ -13,6 +13,10 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "~> 5.16.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
+    }
   }
 
   backend "s3" {
@@ -250,7 +254,10 @@ module "paymentform_backend" {
   service_type               = "backend"
   ghcr_username              = var.ghcr_username
   container_image            = var.backend_container_image
-  alb_target_group_arn       = module.paymentform_nlb_backend.https_target_group_arn
+  alb_target_group_arns = [
+    module.paymentform_nlb_backend.https_target_group_arn,
+    module.paymentform_nlb_backend.http_target_group_arn,
+  ]
 
   container_env_vars = {
     APP_NAME          = "Payment Form"
@@ -381,7 +388,10 @@ module "paymentform_renderer" {
   service_type               = "renderer"
   ghcr_username              = var.ghcr_username
   container_image            = var.renderer_container_image
-  alb_target_group_arn       = module.paymentform_nlb_renderer.https_target_group_arn
+  alb_target_group_arns = [
+    module.paymentform_nlb_renderer.https_target_group_arn,
+    module.paymentform_nlb_renderer.http_target_group_arn,
+  ]
 
   container_env_vars = {
     SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
@@ -390,8 +400,9 @@ module "paymentform_renderer" {
     SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
     API_URL                          = "https://api.paymentform.io"
-    DOMAIN                           = "https://app.paymentform.io"
-    KV_STORE_BASE_URL                = module.paymentform_kv_store.kv_store_endpoint
+    DOMAIN                           = "paymentform.io"
+    KV_STORE_BASE_URL                = "https://tenant-validator-prod.bitapps.workers.dev"
+    ACME_EMAIL                       = "hello@paymentform.io"
     KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
     KV_STORE_API_TOKEN               = var.kv_store_api_token
     STRIPE_KEY                       = var.stripe_public_key
@@ -461,6 +472,7 @@ module "paymentform_nlb_backend" {
   subnet_ids                 = module.paymentform_networking.public_subnet_ids
   enable_deletion_protection = true
   standard_tags              = local.standard_tags
+  alert_webhook_url          = var.alert_webhook_url
 }
 
 # NLB for renderer - *.paymentform.io → port 80/443 → renderer containers
@@ -474,6 +486,7 @@ module "paymentform_nlb_renderer" {
   subnet_ids                 = module.paymentform_networking.public_subnet_ids
   enable_deletion_protection = true
   standard_tags              = local.standard_tags
+  alert_webhook_url          = var.alert_webhook_url
 }
 
 module "paymentform_client" {
@@ -538,4 +551,36 @@ module "paymenform_dns" {
   rate_limit_requests  = 100
   health_check_path    = "/health"
   notification_email   = ""
+}
+
+# =============================================================================
+# Status Page (Cloudflare Worker)
+# =============================================================================
+module "paymentform_status" {
+  source = "../../../providers/cloudflare/status"
+
+  environment           = "prod-us"
+  resource_prefix       = local.resource_prefix
+  standard_tags         = local.standard_tags
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_api_token  = var.cloudflare_api_token
+  cloudflare_zone_id    = var.cloudflare_zone_id
+  domain_name           = "paymentform.io"
+  status_subdomain      = "status"
+  kv_namespace_id       = module.paymentform_kv_store.namespace_id
+
+  services = [
+    {
+      name       = "API (Backend)"
+      health_url = "https://api.paymentform.io/up"
+    },
+    {
+      name       = "Renderer"
+      health_url = "https://renderer.paymentform.io/api/health"
+    },
+    {
+      name       = "Client"
+      health_url = "https://app.paymentform.io/api/health"
+    },
+  ]
 }
