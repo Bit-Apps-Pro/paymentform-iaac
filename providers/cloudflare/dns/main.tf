@@ -24,14 +24,13 @@ locals {
   renderer_target = var.renderer_container_endpoint != "" ? var.renderer_container_endpoint : var.renderer_origin_ip
 }
 
-# Geo-routing A records for API (multi-region)
 resource "cloudflare_dns_record" "api_region" {
   for_each = var.enable_geo_routing ? var.region_endpoints : tomap({})
 
   zone_id = var.cloudflare_zone_id
   name    = var.api_subdomain
   content = each.value
-  type    = "A"
+  type    = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$", each.value)) ? "A" : "CNAME"
   proxied = true
   ttl     = 1
   comment = "API endpoint - ${each.key} region"

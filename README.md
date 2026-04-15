@@ -5,16 +5,13 @@ OpenTofu/Terraform infrastructure with AWS backend, Cloudflare Containers for cl
 ## Quick Start
 
 ```bash
-# 1. Navigate to environment
-cd environments/sandbox
-
-# 2. Set environment variables
-cp ../../.envrc.example .envrc
+# 1. Set environment variables
+cp .envrc.example .envrc
 # Edit .envrc with your secrets
 source .envrc
 
-# 3. Deploy
-tofu init && tofu plan -out=tfplan && tofu apply tfplan
+# 2. Deploy
+make init && make plan && make apply
 ```
 
 ## Structure
@@ -26,25 +23,23 @@ iaac/
 │   │   ├── compute/       # EC2 backend
 │   │   ├── networking/    # VPC, subnets
 │   │   ├── security/      # Security groups
-│   │   └── ssm/           # Secrets management
+│   │   └── volume/        # EBS volumes
 │   └── cloudflare/
-│       ├── containers/    # Reusable container module
+│       ├── containers/    # Cloudflare Containers
 │       ├── dns/           # DNS, WAF, rate limiting
 │       ├── r2/            # R2 buckets + SSL config
-│       └── kv/            # KV namespaces
+│       ├── kv/            # KV namespaces
+│       └── status/        # Status page worker
 │
-├── environments/           # Environment-specific configs
-│   ├── dev/
-│   ├── sandbox/
-│   │   ├── main.tf        # Calls providers/
-│   │   ├── variables.tf
-│   │   └── terraform.tfvars
-│   └── prod/
-│
-├── modules/                # (Optional) Custom composed modules
+├── environments/
+│   └── prod/              # Single production environment (us-east-1)
+│       ├── main.tf        # All modules wired together
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── terraform.tfvars
 │
 ├── .envrc.example          # Environment variables template
-└── terraform.tfvars.example
+└── Makefile                # Common commands (make help)
 ```
 
 ## Architecture

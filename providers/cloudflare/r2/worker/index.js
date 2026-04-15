@@ -1,27 +1,12 @@
-/**
- * Cloudflare Worker for serving files from R2 bucket
- * 
- * Routes:
- * - GET /{tenant}/{path} - Serve file from R2
- * - GET /{tenant}/{path} - CORS preflight handling
- * 
- * Environment bindings:
- * - R2_BUCKET: R2 bucket binding
- * - ENVIRONMENT: Environment name (dev, sandbox, prod)
- * - CORS_ORIGINS: Comma-separated list of allowed origins
- */
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const path = url.pathname.slice(1); // Remove leading /
+    const path = url.pathname.slice(1);
 
-    // Handle CORS preflight requests
     if (request.method === 'OPTIONS') {
       return handleCorsPreflight(request, env);
     }
 
-    // Only allow GET and HEAD requests for public file serving
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method not allowed', { 
         status: 405,
@@ -29,8 +14,7 @@ export default {
       });
     }
 
-    // Validate path - must have at least tenant/file structure
-    if (!path || path.split('/').length < 2) {
+    if (!isPublicPath(path)) {
       return new Response('Not found', { 
         status: 404,
         headers: getCorsHeaders(request, env)
@@ -38,7 +22,6 @@ export default {
     }
 
     try {
-      // Fetch object from R2 bucket
       const object = await env.R2_BUCKET.get(path);
 
       if (!object) {
@@ -48,7 +31,6 @@ export default {
         });
       }
 
-      // Build response headers
       const headers = new Headers({
         ...getCorsHeaders(request, env),
         'Content-Type': object.httpMetadata?.contentType || getContentType(path),
@@ -57,12 +39,10 @@ export default {
         'Last-Modified': object.uploaded.toUTCString(),
       });
 
-      // Add content length if available
       if (object.size) {
         headers.set('Content-Length', object.size.toString());
       }
 
-      // Handle range requests for large files
       if (request.headers.has('Range')) {
         return await handleRangeRequest(request, object, headers);
       }
@@ -82,9 +62,6 @@ export default {
   },
 };
 
-/**
- * Handle CORS preflight requests
- */
 function handleCorsPreflight(request, env) {
   const headers = getCorsHeaders(request, env);
   
@@ -99,9 +76,11 @@ function handleCorsPreflight(request, env) {
   });
 }
 
-/**
- * Get CORS headers based on configuration
- */
+function isPublicPath(path) {
+  const parts = path.split('/');
+  return parts.length >= 4 && parts[2] === 'public' && parts[3] !== '';
+}
+
 function getCorsHeaders(request, env) {
   const origin = request.headers.get('Origin');
   const allowedOrigins = env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',') : ['*'];
@@ -113,9 +92,6 @@ function getCorsHeaders(request, env) {
   return headers;
 }
 
-/**
- * Get content type based on file extension
- */
 function getContentType(path) {
   const ext = path.split('.').pop()?.toLowerCase();
   const contentTypes = {
@@ -145,9 +121,6 @@ function getContentType(path) {
   return contentTypes[ext] || 'application/octet-stream';
 }
 
-/**
- * Handle HTTP range requests for large files
- */
 async function handleRangeRequest(request, object, headers) {
   const range = request.headers.get('Range');
   const size = object.size;
@@ -156,7 +129,6 @@ async function handleRangeRequest(request, object, headers) {
     return new Response(object.body, { status: 200, headers });
   }
 
-  // Parse range header (e.g., "bytes=0-499")
   const matches = range.match(/bytes=(\d+)-(\d*)/);
   if (!matches) {
     return new Response('Invalid range', { 
@@ -176,7 +148,6 @@ async function handleRangeRequest(request, object, headers) {
     });
   }
 
-  // Get the ranged data from R2
   const rangedObject = await env.R2_BUCKET.get(object.key, {
     range: { offset: start, length: clampedEnd - start + 1 },
   });

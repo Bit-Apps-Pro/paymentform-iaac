@@ -1,0 +1,73 @@
+variable "environment" {
+  type = string
+}
+
+variable "resource_prefix" {
+  type = string
+}
+
+variable "region" {
+  type = string
+}
+
+variable "location" {
+  description = "Hetzner datacenter location (e.g. hel1, sin1)"
+  type        = string
+}
+
+variable "server_type" {
+  description = "Hetzner server type"
+  type        = string
+  default     = "cx22"
+}
+
+variable "server_image" {
+  description = "Hetzner OS image"
+  type        = string
+  default     = "ubuntu-24.04"
+}
+
+variable "ssh_public_key" {
+  type    = string
+  default = ""
+}
+
+variable "volume_size_gb" {
+  description = "Data volume size in GB"
+  type        = number
+  default     = 30
+}
+
+variable "primary_host" {
+  description = "Hostname or IP of the Postgres primary (tunnel endpoint)"
+  type        = string
+}
+
+variable "primary_port" {
+  description = "Port of the Postgres primary"
+  type        = number
+  default     = 5432
+}
+
+variable "db_password" {
+  description = "Password for the replicator user"
+  type        = string
+  sensitive   = true
+}
+
+variable "allowed_cidrs" {
+  description = "CIDRs allowed to connect to Postgres port 5432"
+  type        = list(string)
+  default     = ["0.0.0.0/0", "::/0"]
+}
+
+variable "network_id" {
+  description = "Hetzner private network ID to attach this server to. Empty string disables attachment."
+  type        = string
+  default     = ""
+}
+
+variable "standard_tags" {
+  type    = map(string)
+  default = {}
+}

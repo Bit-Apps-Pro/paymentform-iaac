@@ -31,9 +31,10 @@ resource "aws_launch_template" "compute" {
     ghcr_username      = var.ghcr_username
     region             = var.region
     service_type       = var.service_type
-    container_env_vars = join("\n", [for k, v in var.container_env_vars : "${k}=${v}" if v != null])
+    container_env_vars = join("\n", [for k, v in var.container_env_vars : "${k}=\"${v}\"" if v != null])
     IMAGE              = var.container_image
     auto_ssl           = var.auto_ssl
+    tunnel_token       = var.tunnel_token
   }))
 
   key_name      = var.key_pair_name
@@ -93,9 +94,40 @@ resource "aws_autoscaling_group" "compute" {
 
   target_group_arns = var.alb_target_group_arns
 
-  launch_template {
-    id      = aws_launch_template.compute.id
-    version = "$Latest"
+  dynamic "launch_template" {
+    for_each = var.spot_instance_percentage == 0 ? [1] : []
+    content {
+      id      = aws_launch_template.compute.id
+      version = "$Latest"
+    }
+  }
+
+  dynamic "mixed_instances_policy" {
+    for_each = var.spot_instance_percentage > 0 ? [1] : []
+    content {
+      instances_distribution {
+        on_demand_percentage_above_base_capacity = 100 - var.spot_instance_percentage
+        spot_allocation_strategy                 = "capacity-optimized"
+      }
+
+      launch_template {
+        launch_template_specification {
+          launch_template_id = aws_launch_template.compute.id
+          version            = "$Latest"
+        }
+
+        override {
+          instance_type = var.instance_type
+        }
+
+        dynamic "override" {
+          for_each = var.spot_instance_types
+          content {
+            instance_type = override.value
+          }
+        }
+      }
+    }
   }
 
   health_check_type         = "EC2"

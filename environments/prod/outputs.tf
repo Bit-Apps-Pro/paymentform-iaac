@@ -27,6 +27,20 @@ output "renderer_instance_ids" {
   value       = { for idx, id in module.paymentform_renderer.instance_ids : "renderer_${idx + 1}" => id }
 }
 
+output "database_instance_ids" {
+  description = "Map of database instance IDs"
+  value = {
+    primary              = module.postgres_database.primary_instance_id
+    replica              = module.postgres_database.replica_instance_id
+    cross_region_replica = module.postgres_database.cross_region_replica_instance_id
+  }
+}
+
+output "valkey_instance_ids" {
+  description = "Map of Valkey instance IDs (valkey_1:i-xxx, valkey_2:i-xxx)"
+  value       = { for idx, id in module.paymentform_cache.instance_ids : "valkey_${idx + 1}" => id }
+}
+
 output "database_primary_endpoint" {
   value = module.postgres_database.primary_endpoint
 }

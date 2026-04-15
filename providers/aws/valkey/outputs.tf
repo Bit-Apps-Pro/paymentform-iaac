@@ -3,6 +3,11 @@ output "cluster_ips" {
   value       = aws_instance.valkey[*].private_ip
 }
 
+output "instance_ids" {
+  description = "List of instance IDs for all Valkey nodes"
+  value       = aws_instance.valkey[*].id
+}
+
 output "primary_endpoint" {
   description = "Primary Valkey node endpoint"
   value       = aws_instance.valkey[0].private_ip

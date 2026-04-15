@@ -46,7 +46,21 @@ docker run -d \
   -p 80:80 \
   -p 443:443 \
   -v /caddy/data:/data/caddy \
+  -v /etc/app.env:/app/.env \
   -v /caddy/config:/config/caddy \
   ${IMAGE}
 
 log "Container started successfully"
+
+%{ if tunnel_token != "" ~}
+log "Starting cloudflared tunnel connector"
+docker stop cloudflared || true
+docker rm cloudflared || true
+docker run -d \
+  --name cloudflared \
+  --restart unless-stopped \
+  --network=host \
+  cloudflare/cloudflared:latest tunnel --no-autoupdate run \
+  --token ${tunnel_token}
+log "cloudflared started"
+%{ endif ~}

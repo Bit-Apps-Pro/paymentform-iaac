@@ -150,3 +150,26 @@ variable "auto_ssl" {
   type        = bool
   default     = true
 }
+
+variable "spot_instance_percentage" {
+  description = "Percentage of instances to run as spot (0 = all on-demand, 100 = all spot). Use 0 for primary region, 80-100 for secondary regions."
+  type        = number
+  default     = 0
+  validation {
+    condition     = var.spot_instance_percentage >= 0 && var.spot_instance_percentage <= 100
+    error_message = "spot_instance_percentage must be between 0 and 100."
+  }
+}
+
+variable "spot_instance_types" {
+  description = "Additional instance types for spot capacity pool diversity (fallback types besides var.instance_type)"
+  type        = list(string)
+  default     = []
+}
+
+variable "tunnel_token" {
+  description = "Cloudflare Tunnel token for cloudflared sidecar. When set, cloudflared runs alongside the app container and traffic is routed via tunnel instead of direct NLB."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

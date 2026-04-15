@@ -248,6 +248,13 @@ variable "peer_vpc_cidrs" {
 # =============================================================================
 # Pre-created Volume IDs (to attach to instances)
 # =============================================================================
+variable "tunnel_token" {
+  description = "Cloudflare Tunnel token for DB tunnel (exposes port 5432 to Hetzner replicas). Empty disables cloudflared."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "volume_ids" {
   description = "Map of volume names to volume IDs for attaching to instances"
   type        = map(string)

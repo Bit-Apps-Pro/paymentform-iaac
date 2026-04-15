@@ -157,15 +157,38 @@ variable "stripe_connect_webhook_secret" {
 }
 
 variable "postgres_ami_id" {
-  description = "AMI ID for PostgreSQL instances (Ubuntu with PostgreSQL)"
+  description = "AMI ID for PostgreSQL instances in us-east-1"
   type        = string
   default     = ""
 }
 
 variable "valkey_ami_id" {
-  description = "AMI ID for Valkey instances"
+  description = "AMI ID for Valkey instances in us-east-1"
   type        = string
   default     = ""
+}
+
+variable "hetzner_api_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "hetzner_ssh_public_key" {
+  description = "SSH public key content for Hetzner VMs"
+  type        = string
+  default     = ""
+}
+
+variable "hetzner_server_type" {
+  description = "Hetzner server type for backend VMs (e.g. cx22, cpx21)"
+  type        = string
+  default     = "cx22"
+}
+
+variable "hetzner_db_server_type" {
+  description = "Hetzner server type for DB replica VMs (e.g. cx22, cpx21)"
+  type        = string
+  default     = "cx22"
 }
 
 variable "backup_storage_access_key_id" {

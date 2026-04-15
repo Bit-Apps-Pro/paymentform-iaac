@@ -83,7 +83,7 @@ resource "aws_volume_attachment" "replica_data" {
 
 # EC2 Instance for PostgreSQL Primary
 resource "aws_instance" "postgresql_primary" {
-  ami           = "ami-076cedc463bf709d2"
+  ami           = var.ami_id
   instance_type = var.primary_instance_type
   subnet_id     = var.subnet_ids[0]
 
@@ -126,15 +126,17 @@ resource "aws_instance" "postgresql_primary" {
     MOUNT_POINT                          = "/mnt/postgresql"
     PGDATA_DIR                           = "/mnt/postgresql/data"
     peer_vpc_cidrs_hba                   = join("\n", [for cidr in var.peer_vpc_cidrs : "host  replication  replicator  ${cidr}  scram-sha-256\nhost  all  all  ${cidr}  md5"])
+    tunnel_token                         = var.tunnel_token
   }))
 }
 
 # EC2 Instance for PostgreSQL Replica
 resource "aws_instance" "postgresql_replica" {
-  count         = var.enable_replica ? 1 : 0
-  ami           = "ami-076cedc463bf709d2"
-  instance_type = var.replica_instance_type
-  subnet_id     = length(var.subnet_ids) > 1 ? var.subnet_ids[1] : var.subnet_ids[0]
+  count                       = var.enable_replica ? 1 : 0
+  ami                         = var.ami_id
+  instance_type               = var.replica_instance_type
+  subnet_id                   = length(var.subnet_ids) > 1 ? var.subnet_ids[1] : var.subnet_ids[0]
+  user_data_replace_on_change = true
 
   disable_api_termination = true
 
@@ -233,10 +235,11 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 
 # Cross-region Read Replica
 resource "aws_instance" "postgresql_cross_region_replica" {
-  count         = var.enable_cross_region_replica ? 1 : 0
-  ami           = "ami-076cedc463bf709d2"
-  instance_type = var.replica_instance_type
-  subnet_id     = var.replica_subnet_ids[0]
+  count                       = var.enable_cross_region_replica ? 1 : 0
+  ami                         = var.ami_id
+  instance_type               = var.replica_instance_type
+  subnet_id                   = var.replica_subnet_ids[0]
+  user_data_replace_on_change = true
 
   vpc_security_group_ids = [
     var.security_group_id
@@ -269,4 +272,3 @@ resource "aws_instance" "postgresql_cross_region_replica" {
 
   depends_on = [aws_instance.postgresql_primary]
 }
-
