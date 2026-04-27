@@ -21,13 +21,25 @@ variable "cloudflare_zone_id" {
 }
 
 variable "worker_enabled" {
-  description = "Enable Cloudflare Worker for public file serving"
+  description = "Enable Cloudflare Workers for public file serving"
   type        = bool
   default     = false
 }
 
-variable "worker_route_pattern" {
-  description = "Route pattern for the Worker (e.g., cdn.example.com/*)"
+variable "regional_buckets" {
+  description = "Map of region to bucket names for binding to workers"
+  type        = map(string)
+  default     = {}
+}
+
+variable "domain_prefix" {
+  description = "Prefix for CDN subdomains (e.g., 'cdn' creates cdn-us, cdn-eu, cdn-ap)"
+  type        = string
+  default     = "cdn"
+}
+
+variable "base_domain" {
+  description = "Base domain for CDN (e.g., paymentform.io)"
   type        = string
   default     = ""
 }
@@ -36,10 +48,4 @@ variable "cors_allowed_origins" {
   description = "List of allowed origins for CORS configuration"
   type        = list(string)
   default     = ["*"]
-}
-
-variable "application_bucket_name" {
-  description = "Optional: Name of the application R2 bucket to bind to the Worker"
-  type        = string
-  default     = ""
 }

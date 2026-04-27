@@ -14,7 +14,20 @@ variable "cloudflare_api_token" {
   sensitive   = true
 }
 
-variable "r2_bucket_name" {
-  description = "Name of the R2 bucket for application storage (without environment prefix)"
+variable "bucket_name_prefix" {
+  description = "Prefix for bucket names (e.g., paymentform-uploads)"
   type        = string
+}
+
+variable "regional_config" {
+  description = "Map of region suffix to R2 location and jurisdiction"
+  type = map(object({
+    location     = string
+    jurisdiction = optional(string, "default")
+  }))
+  default = {
+    "us" = { location = "wnam", jurisdiction = "default" }
+    "eu" = { location = "weur", jurisdiction = "eu" }
+    "ap" = { location = "apac", jurisdiction = "default" }
+  }
 }

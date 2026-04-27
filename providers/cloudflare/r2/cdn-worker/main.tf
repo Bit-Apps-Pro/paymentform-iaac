@@ -13,11 +13,21 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
+locals {
+  worker_configs = var.worker_enabled && length(var.regional_buckets) > 0 ? {
+    for region, bucket in var.regional_buckets : region => {
+      name    = "${var.environment}-cdn-worker-${region}"
+      pattern = "${var.domain_prefix}-${region}.${var.base_domain}/*"
+      bucket  = bucket
+    }
+  } : {}
+}
+
 resource "cloudflare_workers_script" "cdn_worker" {
-  count = var.worker_enabled && var.worker_route_pattern != "" ? 1 : 0
+  for_each = local.worker_configs
 
   account_id         = var.cloudflare_account_id
-  script_name        = "${var.environment}-cdn-worker"
+  script_name        = each.value.name
   content            = file("${path.module}/../worker/index.js")
   compatibility_date = "2024-01-01"
 
@@ -25,7 +35,7 @@ resource "cloudflare_workers_script" "cdn_worker" {
     {
       name        = "R2_BUCKET"
       type        = "r2_bucket"
-      bucket_name = var.application_bucket_name
+      bucket_name = each.value.bucket
     },
     {
       name = "ENVIRONMENT"
@@ -41,9 +51,9 @@ resource "cloudflare_workers_script" "cdn_worker" {
 }
 
 resource "cloudflare_workers_route" "cdn_route" {
-  count = var.worker_enabled && var.worker_route_pattern != "" && var.cloudflare_zone_id != "" ? 1 : 0
+  for_each = var.worker_enabled && var.cloudflare_zone_id != "" ? local.worker_configs : {}
 
   zone_id = var.cloudflare_zone_id
-  pattern = var.worker_route_pattern
-  script  = cloudflare_workers_script.cdn_worker[0].script_name
+  pattern = each.value.pattern
+  script  = cloudflare_workers_script.cdn_worker[each.key].script_name
 }

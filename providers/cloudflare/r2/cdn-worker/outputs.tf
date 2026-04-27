@@ -1,9 +1,9 @@
-output "worker_name" {
-  description = "Name of the Cloudflare Worker for public file serving (or null if disabled)"
-  value       = var.worker_enabled && var.worker_route_pattern != "" ? cloudflare_workers_script.cdn_worker[0].script_name : null
+output "worker_names" {
+  description = "Map of region to Cloudflare Worker names (or empty if disabled)"
+  value       = var.worker_enabled ? { for region, worker in cloudflare_workers_script.cdn_worker : region => worker.script_name } : {}
 }
 
-output "worker_url" {
-  description = "URL pattern for accessing files via Worker (or null if disabled)"
-  value       = var.worker_enabled && var.worker_route_pattern != "" ? "https://${replace(var.worker_route_pattern, "/*", "")}" : null
+output "worker_urls" {
+  description = "Map of region to CDN URLs (or empty if disabled)"
+  value       = var.worker_enabled ? { for region, config in local.worker_configs : region => "https://${replace(config.pattern, "/*", "")}" } : {}
 }
