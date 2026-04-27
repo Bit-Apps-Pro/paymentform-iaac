@@ -43,6 +43,8 @@ provider "hcloud" {
   token = var.hetzner_api_token
 }
 
+data "aws_caller_identity" "current" {}
+
 locals {
   resource_prefix = "paymentform-p-us"
   region          = "us-east-1"
@@ -239,7 +241,7 @@ module "paymentform_backend" {
   ecs_cluster_name           = "${local.resource_prefix}-cluster"
   ecs_security_group_id      = module.paymentform_security.ecs_security_group_id
   region                     = local.region
-  bucket_name                = module.paymentform_storage_application.bucket_name
+  bucket_name                = module.paymentform_storage_application.bucket_names["us"]
   service_type               = "backend"
   ghcr_username              = var.ghcr_username
   container_image            = var.backend_container_image
@@ -284,19 +286,31 @@ module "paymentform_backend" {
     TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
     TENANT_DB_AUTH_TOKEN        = var.tenant_db_auth_token
 
-    SESSION_DRIVER   = "redis"
+    SESSION_DRIVER   = "database"
     SESSION_LIFETIME = 120
     SESSION_ENCRYPT  = false
     SESSION_PATH     = "/"
     SESSION_DOMAIN   = null
 
-    BROADCAST_CONNECTION = "redis"
+    BROADCAST_CONNECTION = "reverb"
     FILESYSTEM_DISK      = "local"
-    QUEUE_CONNECTION     = "redis"
+    QUEUE_CONNECTION     = "sqs"
     CACHE_STORE          = "redis"
 
+    REVERB_APP_ID          = "1"
+    REVERB_APP_KEY         = var.reverb_app_key
+    REVERB_APP_SECRET      = var.reverb_app_secret
+    REVERB_HOST            = "0.0.0.0"
+    REVERB_PORT            = "8080"
+    REVERB_SCHEME          = "http"
+    REVERB_SCALING_ENABLED = "false"
+
+    SQS_QUEUE_CONNECTION = "default"
+    SQS_PREFIX           = "https://sqs.${local.region}.amazonaws.com/${data.aws_caller_identity.current.account_id}"
+    SQS_SUFFIX           = ""
+
     REDIS_CLIENT   = "phpredis"
-    REDIS_HOST     = module.paymentform_cache.primary_endpoint
+    REDIS_HOST     = "10.1.0.10"
     REDIS_PORT     = 6379
     REDIS_PASSWORD = var.redis_password
 
@@ -311,7 +325,10 @@ module "paymentform_backend" {
     AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.paymentform_storage_application.bucket_name
+    AWS_BUCKET                  = module.paymentform_storage_application.bucket_names["us"]
+    AWS_BUCKET_US               = module.paymentform_storage_application.bucket_names["us"]
+    AWS_BUCKET_EU               = module.paymentform_storage_application.bucket_names["eu"]
+    AWS_BUCKET_AP               = module.paymentform_storage_application.bucket_names["ap"]
     AWS_USE_PATH_STYLE_ENDPOINT = true
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
@@ -373,7 +390,7 @@ module "paymentform_renderer" {
   ecs_cluster_name           = "${local.resource_prefix}-cluster"
   ecs_security_group_id      = module.paymentform_security.ecs_security_group_id
   region                     = local.region
-  bucket_name                = module.paymentform_storage_application.bucket_name
+  bucket_name                = module.paymentform_storage_application.bucket_names["us"]
   service_type               = "renderer"
   ghcr_username              = var.ghcr_username
   container_image            = var.renderer_container_image
@@ -406,7 +423,7 @@ module "paymentform_storage_application" {
   environment           = "prod"
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_api_token  = var.cloudflare_api_token
-  r2_bucket_name        = "${local.resource_prefix}-uploads"
+  bucket_name_prefix    = "paymentform-uploads"
 }
 
 module "paymentform_storage_ssl_config" {
@@ -419,7 +436,7 @@ module "paymentform_storage_ssl_config" {
   enabled               = true
 }
 
-module "paymentform_storage_cdn_worker" {
+module "paymentform_storage_cdn" {
   source = "../../providers/cloudflare/r2/cdn-worker"
 
   environment           = "prod"
@@ -427,10 +444,11 @@ module "paymentform_storage_cdn_worker" {
   cloudflare_api_token  = var.cloudflare_api_token
   cloudflare_zone_id    = var.cloudflare_zone_id
 
-  worker_enabled          = false
-  worker_route_pattern    = "cdn.paymentform.io/*"
-  cors_allowed_origins    = ["https://app.paymentform.io"]
-  application_bucket_name = module.paymentform_storage_application.bucket_name
+  worker_enabled       = false
+  regional_buckets     = module.paymentform_storage_application.bucket_names
+  domain_prefix        = "cdn"
+  base_domain          = "paymentform.io"
+  cors_allowed_origins = ["https://app.paymentform.io"]
 }
 
 module "paymentform_kv_store" {
@@ -593,19 +611,30 @@ module "hetzner_backend_hel1" {
     TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
     TENANT_DB_AUTH_TOKEN        = var.tenant_db_auth_token
 
-    SESSION_DRIVER   = "redis"
+    SESSION_DRIVER   = "database"
     SESSION_LIFETIME = "120"
     SESSION_ENCRYPT  = "false"
     SESSION_PATH     = "/"
     SESSION_DOMAIN   = ""
 
-    BROADCAST_CONNECTION = "redis"
+    BROADCAST_CONNECTION = "reverb"
+    REVERB_APP_ID        = "1"
+    REVERB_APP_KEY       = var.reverb_app_key
+    REVERB_APP_SECRET    = var.reverb_app_secret
+    REVERB_HOST          = "0.0.0.0"
+    REVERB_PORT          = "8080"
+    REVERB_SCHEME        = "http"
+    REVERB_SCALING_ENABLED = "false"
     FILESYSTEM_DISK      = "local"
-    QUEUE_CONNECTION     = "redis"
+    QUEUE_CONNECTION     = "sqs"
     CACHE_STORE          = "redis"
 
+    SQS_QUEUE_CONNECTION = "default"
+    SQS_PREFIX           = "https://sqs.${local.region}.amazonaws.com/${data.aws_caller_identity.current.account_id}"
+    SQS_SUFFIX           = ""
+
     REDIS_CLIENT   = "phpredis"
-    REDIS_HOST     = "127.0.0.1"
+    REDIS_HOST     = "10.1.0.10"
     REDIS_PORT     = "6379"
     REDIS_PASSWORD = var.redis_password
 
@@ -620,7 +649,10 @@ module "hetzner_backend_hel1" {
     AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.paymentform_storage_application.bucket_name
+    AWS_BUCKET                  = module.paymentform_storage_application.bucket_names["us"]
+    AWS_BUCKET_US               = module.paymentform_storage_application.bucket_names["us"]
+    AWS_BUCKET_EU               = module.paymentform_storage_application.bucket_names["eu"]
+    AWS_BUCKET_AP               = module.paymentform_storage_application.bucket_names["ap"]
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
@@ -645,6 +677,18 @@ module "hetzner_backend_hel1" {
     KV_STORE_API_URL      = module.paymentform_kv_store.kv_store_endpoint
     KV_STORE_API_TOKEN    = var.kv_store_api_token
     KV_STORE_NAMESPACE_ID = module.paymentform_kv_store.namespace_id
+
+    REVERB_APP_ID          = "1"
+    REVERB_APP_KEY         = var.reverb_app_key
+    REVERB_APP_SECRET      = var.reverb_app_secret
+    REVERB_HOST            = "0.0.0.0"
+    REVERB_PORT            = "8080"
+    REVERB_SCHEME          = "http"
+    REVERB_SCALING_ENABLED = "false"
+
+    SQS_QUEUE_CONNECTION = "sqs"
+    SQS_PREFIX           = "paymentform"
+    SQS_SUFFIX          = ""
 
     SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
     SSL_STORAGE_BUCKET_HOST          = module.paymentform_storage_ssl_config.bucket_domain
@@ -729,19 +773,31 @@ module "hetzner_backend_sin1" {
     TENANT_TURSO_DEFAULT_REGION = "aws-ap-northeast-1"
     TENANT_DB_AUTH_TOKEN        = var.tenant_db_auth_token
 
-    SESSION_DRIVER   = "redis"
+    SESSION_DRIVER   = "database"
     SESSION_LIFETIME = "120"
     SESSION_ENCRYPT  = "false"
     SESSION_PATH     = "/"
     SESSION_DOMAIN   = ""
 
-    BROADCAST_CONNECTION = "redis"
+    BROADCAST_CONNECTION = "reverb"
     FILESYSTEM_DISK      = "local"
-    QUEUE_CONNECTION     = "redis"
+    QUEUE_CONNECTION     = "sqs"
     CACHE_STORE          = "redis"
 
+    REVERB_APP_ID          = "1"
+    REVERB_APP_KEY         = var.reverb_app_key
+    REVERB_APP_SECRET      = var.reverb_app_secret
+    REVERB_HOST            = "0.0.0.0"
+    REVERB_PORT            = "8080"
+    REVERB_SCHEME          = "http"
+    REVERB_SCALING_ENABLED = "false"
+
+    SQS_QUEUE_CONNECTION = "sqs"
+    SQS_PREFIX           = "paymentform"
+    SQS_SUFFIX          = "default"
+
     REDIS_CLIENT   = "phpredis"
-    REDIS_HOST     = "127.0.0.1"
+    REDIS_HOST     = "10.1.0.10"
     REDIS_PORT     = "6379"
     REDIS_PASSWORD = var.redis_password
 
@@ -756,7 +812,10 @@ module "hetzner_backend_sin1" {
     AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.paymentform_storage_application.bucket_name
+    AWS_BUCKET                  = module.paymentform_storage_application.bucket_names["us"]
+    AWS_BUCKET_US               = module.paymentform_storage_application.bucket_names["us"]
+    AWS_BUCKET_EU               = module.paymentform_storage_application.bucket_names["eu"]
+    AWS_BUCKET_AP               = module.paymentform_storage_application.bucket_names["ap"]
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"

@@ -266,3 +266,15 @@ variable "alert_webhook_url" {
   sensitive   = true
   default     = ""
 }
+
+variable "reverb_app_key" {
+  description = "Reverb app key for WebSocket broadcasting"
+  type        = string
+  sensitive   = true
+}
+
+variable "reverb_app_secret" {
+  description = "Reverb app secret for WebSocket broadcasting"
+  type        = string
+  sensitive   = true
+}
