@@ -17,9 +17,5 @@ resource "cloudflare_r2_bucket" "ssl_config" {
   count = var.enabled ? 1 : 0
 
   account_id = var.cloudflare_account_id
-  name       = "${var.environment}-${var.r2_bucket_name}"
-
-  lifecycle {
-    # prevent_destroy = true
-  }
+  name       = "${var.r2_bucket_name}"
 }

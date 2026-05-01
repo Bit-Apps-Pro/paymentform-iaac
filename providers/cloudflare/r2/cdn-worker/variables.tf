@@ -18,6 +18,7 @@ variable "cloudflare_zone_id" {
   description = "Cloudflare Zone ID for Worker route binding"
   type        = string
   default     = ""
+  sensitive   = false
 }
 
 variable "worker_enabled" {
@@ -28,8 +29,11 @@ variable "worker_enabled" {
 
 variable "regional_buckets" {
   description = "Map of region to bucket names for binding to workers"
-  type        = map(string)
-  default     = {}
+  type        = map(object({
+    bucket_name  = string
+    jurisdiction = optional(string, "default")
+  }))
+  default = {}
 }
 
 variable "domain_prefix" {
@@ -42,6 +46,12 @@ variable "base_domain" {
   description = "Base domain for CDN (e.g., paymentform.io)"
   type        = string
   default     = ""
+}
+
+variable "regional_domains" {
+  description = "Map of region to full CDN domain (overrides domain_prefix/base_domain per region)"
+  type        = map(string)
+  default     = {}
 }
 
 variable "cors_allowed_origins" {

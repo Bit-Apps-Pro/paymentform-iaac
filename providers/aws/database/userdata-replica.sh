@@ -76,13 +76,46 @@ escape_pgpass_field() {
   printf '%s' "$1" | sed 's/[\\:]/\\&/g'
 }
 
+install_postgresql() {
+  log "PostgreSQL not found, installing..."
+
+  apt-get update -y
+  apt-get install -y curl ca-certificates gnupg lsb-release
+
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgsql.list
+
+  apt-get update -y
+  apt-get install -y postgresql-${postgres_version} postgresql-client-${postgres_version} postgresql-contrib-${postgres_version}
+
+  log "PostgreSQL installed successfully"
+}
+
+check_postgresql_installed() {
+  if command -v psql >/dev/null 2>&1; then
+    return 0
+  fi
+  if compgen -G "/usr/lib/postgresql/*/bin/psql" >/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+if ! check_postgresql_installed; then
+  install_postgresql
+else
+  log "PostgreSQL is already installed"
+fi
+
+if systemctl is-active postgresql >/dev/null 2>&1; then
+  systemctl stop postgresql || true
+fi
+
 DATA_VOLUME="${data_volume_device}"
 MOUNT_POINT="/mnt/postgresql"
 PGDATA_DIR="$MOUNT_POINT/data"
 
 if ! getent group postgres >/dev/null; then
-    # Pick a GID that is not already assigned to avoid colliding with existing
-    # system files (e.g. /usr/bin/sudo may be owned by a low-numbered GID).
     POSTGRES_GID=""
     for candidate_gid in 26 490 491 492 493 494 495; do
         if ! getent group "$candidate_gid" >/dev/null 2>&1; then
@@ -147,9 +180,6 @@ fi
 
 validate_pgdata_dir "$PGDATA_DIR"
 
-# Avoid full system upgrades during first boot; they can leave core packages
-# in a bad state if cloud-init is interrupted or a reboot is deferred.
-
 mkdir -p "$PGDATA_DIR"
 chown -R --no-dereference postgres:postgres "$PGDATA_DIR"
 chmod 700 "$PGDATA_DIR"
@@ -157,7 +187,6 @@ chmod 700 "$PGDATA_DIR"
 mkdir -p "/etc/systemd/system/postgresql.service.d"
 cat > "/etc/systemd/system/postgresql.service.d/override.conf" <<EOF
 [Service]
-Environment=
 Environment=PGDATA=$PGDATA_DIR
 EOF
 systemctl daemon-reload
@@ -194,9 +223,6 @@ if ! grep -q '^hot_standby = on$' "$PGCONF_FILE" 2>/dev/null; then
     echo "hot_standby = on" >> "$PGCONF_FILE"
 fi
 
-# pg_basebackup copies postgresql.conf verbatim from the primary, which may
-# have data_directory pointing to the primary's local path. Override it to
-# the replica's actual data directory.
 if grep -q "^data_directory" "$PGCONF_FILE" 2>/dev/null; then
     sed -i "s|^data_directory\s*=.*|data_directory = '$PGDATA_DIR'|" "$PGCONF_FILE"
 fi

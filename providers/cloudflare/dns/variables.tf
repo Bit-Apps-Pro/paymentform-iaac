@@ -141,7 +141,13 @@ variable "enable_geo_routing" {
 }
 
 variable "region_endpoints" {
-  description = "Map of region names to their endpoints (e.g., { us = \"1.2.3.4\", eu = \"5.6.7.8\", au = \"9.10.11.12\" })"
+  description = "Map of region names to their endpoints for additional regional DNS records (e.g., { eu = \"5.6.7.8\", sg = \"9.10.11.12\" })"
+  type        = map(string)
+  default     = {}
+}
+
+variable "region_hostnames" {
+  description = "Map of region names to unique hostnames for regional API records (e.g., { eu = \"api-eu.example.com\", sg = \"api-sg.example.com\" })"
   type        = map(string)
   default     = {}
 }

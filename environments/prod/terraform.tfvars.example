@@ -152,6 +152,24 @@ ghcr_token    = "ghp_YOUR_GITHUB_TOKEN"
 # on_demand_percentage = 30         # 70% spot / 30% on-demand
 
 # ----------------------------------------------------------------------------
+# hetzner cloud configuration
+#----------------------------------------------------------------------------
+hetzner_api_token      = "..."   # console.hetzner.cloud → project → Security → API Tokens → Generate
+hetzner_ssh_public_key = "ssh-ed25519 AAAA..."  # cat ~/.ssh/id_ed25519.pub
+hetzner_server_type    = "cx22"  # cheapest; cx32 for more RAM
+hetzner_db_server_type = "cx22"
+
+# ----------------------------------------------------------------------------
+# Hetzner Firewall Configuration
+# ----------------------------------------------------------------------------
+# Admin IPs allowed for SSH access (CIDR notation)
+# Default: empty (falls back to 0.0.0.0/0 - NOT RECOMMENDED for production)
+# Example: ["119.10.168.198/32", "203.0.113.0/24"]
+admin_cidr_blocks = [
+  "119.10.168.198/32",
+]
+
+# ----------------------------------------------------------------------------
 # Notes
 # ----------------------------------------------------------------------------
 # Sensitive variables in this file are for reference only.

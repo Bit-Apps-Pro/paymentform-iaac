@@ -31,7 +31,7 @@ resource "aws_launch_template" "compute" {
     ghcr_username      = var.ghcr_username
     region             = var.region
     service_type       = var.service_type
-    container_env_vars = join("\n", [for k, v in var.container_env_vars : "${k}=\"${v}\"" if v != null])
+    container_env_vars = join("\n", [for k, v in var.container_env_vars : "${k}='${v}'" if v != null])
     IMAGE              = var.container_image
     auto_ssl           = var.auto_ssl
     tunnel_token       = var.tunnel_token

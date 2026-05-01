@@ -11,7 +11,7 @@ account_id = ""
 # R2 bucket binding - will be overridden by Terraform
 [[r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "paymentform-uploads"
+bucket_name = "paymentform-uploads-us"
 
 # Environment variables
 [vars]

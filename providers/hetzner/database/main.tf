@@ -10,11 +10,13 @@ terraform {
 }
 
 locals {
-  server_name = "${var.resource_prefix}-${var.region}-db-replica"
+  server_name     = "${var.resource_prefix}-${var.region}-db-replica"
+  admin_source_ips = sort(distinct(length(var.admin_cidr_blocks) > 0 ? var.admin_cidr_blocks : ["0.0.0.0/0"]))
+  db_source_ips    = sort(distinct(length(var.backend_private_cidrs) > 0 ? var.backend_private_cidrs : var.allowed_cidrs))
 }
 
 resource "hcloud_ssh_key" "db" {
-  count      = var.ssh_public_key != "" ? 1 : 0
+  count      = var.ssh_key_id == "" && var.ssh_public_key != "" ? 1 : 0
   name       = "${local.server_name}-key"
   public_key = var.ssh_public_key
 }
@@ -37,7 +39,7 @@ resource "hcloud_server" "db_replica" {
   server_type = var.server_type
   image       = var.server_image
   location    = var.location
-  ssh_keys    = var.ssh_public_key != "" ? [hcloud_ssh_key.db[0].id] : []
+  ssh_keys    = var.ssh_key_id != "" ? [var.ssh_key_id] : (var.ssh_public_key != "" ? [hcloud_ssh_key.db[0].id] : [])
 
   user_data = templatefile("${path.module}/userdata-replica.sh", {
     primary_host  = var.primary_host
@@ -69,17 +71,21 @@ resource "hcloud_firewall" "db" {
   name = "${local.server_name}-fw"
 
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "22"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    description     = "Allow SSH admin access"
+    direction       = "in"
+    protocol        = "tcp"
+    port            = "22"
+    source_ips      = local.admin_source_ips
+    destination_ips = []
   }
 
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "5432"
-    source_ips = var.allowed_cidrs
+    description     = "Allow PostgreSQL replication access"
+    direction       = "in"
+    protocol        = "tcp"
+    port            = "5432"
+    source_ips      = local.db_source_ips
+    destination_ips = []
   }
 
   labels = var.standard_tags

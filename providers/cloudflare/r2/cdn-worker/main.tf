@@ -16,9 +16,10 @@ provider "cloudflare" {
 locals {
   worker_configs = var.worker_enabled && length(var.regional_buckets) > 0 ? {
     for region, bucket in var.regional_buckets : region => {
-      name    = "${var.environment}-cdn-worker-${region}"
-      pattern = "${var.domain_prefix}-${region}.${var.base_domain}/*"
-      bucket  = bucket
+      name       = "${var.environment}-cdn-worker-${region}"
+      pattern    = length(var.regional_domains) > 0 && contains(keys(var.regional_domains), region) ? "${var.regional_domains[region]}/*" : "${var.domain_prefix}-${region}.${var.base_domain}/*"
+      bucket     = bucket.bucket_name
+      jurisdiction = bucket.jurisdiction
     }
   } : {}
 }
@@ -36,6 +37,7 @@ resource "cloudflare_workers_script" "cdn_worker" {
       name        = "R2_BUCKET"
       type        = "r2_bucket"
       bucket_name = each.value.bucket
+      jurisdiction = each.value.jurisdiction == "eu" ? "eu" : null
     },
     {
       name = "ENVIRONMENT"
@@ -51,7 +53,7 @@ resource "cloudflare_workers_script" "cdn_worker" {
 }
 
 resource "cloudflare_workers_route" "cdn_route" {
-  for_each = var.worker_enabled && var.cloudflare_zone_id != "" ? local.worker_configs : {}
+  for_each = var.worker_enabled && nonsensitive(var.cloudflare_zone_id) != "" ? local.worker_configs : {}
 
   zone_id = var.cloudflare_zone_id
   pattern = each.value.pattern

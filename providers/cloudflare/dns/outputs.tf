@@ -2,7 +2,7 @@
 
 output "api_dns_record_id" {
   description = "DNS record ID for API subdomain"
-  value       = cloudflare_dns_record.api[0].id
+  value       = try(cloudflare_dns_record.api[0].id, null)
 }
 
 output "renderer_dns_record_id" {
@@ -12,7 +12,7 @@ output "renderer_dns_record_id" {
 
 output "api_hostname" {
   description = "Full hostname for API"
-  value       = cloudflare_dns_record.api[0].name
+  value       = try(cloudflare_dns_record.api[0].name, null)
 }
 
 

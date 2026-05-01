@@ -132,6 +132,30 @@ variable "upload_storage_secret_access_key" {
   sensitive = true
 }
 
+variable "upload_storage_access_key_id_eu" {
+  description = "R2 API access key ID for EU upload storage bucket"
+  type        = string
+  sensitive   = true
+}
+
+variable "upload_storage_secret_access_key_eu" {
+  description = "R2 API secret access key for EU upload storage bucket"
+  type        = string
+  sensitive   = true
+}
+
+variable "upload_storage_access_key_id_ap" {
+  description = "R2 API access key ID for AP upload storage bucket"
+  type        = string
+  sensitive   = true
+}
+
+variable "upload_storage_secret_access_key_ap" {
+  description = "R2 API secret access key for AP upload storage bucket"
+  type        = string
+  sensitive   = true
+}
+
 variable "google_client_secret" {
   type      = string
   sensitive = true
@@ -175,6 +199,12 @@ variable "hetzner_api_token" {
 
 variable "hetzner_ssh_public_key" {
   description = "SSH public key content for Hetzner VMs"
+  type        = string
+  default     = ""
+}
+
+variable "hetzner_ssh_key_name" {
+  description = "Name of existing SSH key in Hetzner dashboard (takes precedence over creating new key)"
   type        = string
   default     = ""
 }
@@ -277,4 +307,10 @@ variable "reverb_app_secret" {
   description = "Reverb app secret for WebSocket broadcasting"
   type        = string
   sensitive   = true
+}
+
+variable "admin_cidr_blocks" {
+  description = "CIDR blocks allowed for SSH access to Hetzner instances (admin IPs only)"
+  type        = list(string)
+  default     = []
 }

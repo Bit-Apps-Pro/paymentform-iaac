@@ -20,7 +20,7 @@ output "ssl_config_bucket_domain" {
 
 output "r2_endpoint" {
   description = "R2 endpoint URL for SSL config bucket"
-  value       = "https://${module.ssl-config.bucket_name}.r2.cloudflarestorage.com"
+  value       = "https://${module.ssl-config.cloudflare_account_id}.r2.cloudflarestorage.com"
 }
 
 output "public_files_bucket_name" {

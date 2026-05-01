@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+mkdir -p /usr/local/lib
+cat > /usr/local/lib/pg-utils.sh <<'PG_UTILS'
 log() {
   echo "[ $(date '+%Y-%m-%d %H:%M:%S') ] $1"
 }
@@ -71,6 +73,70 @@ resolve_data_volume() {
 
   return 1
 }
+PG_UTILS
+chmod +x /usr/local/lib/pg-utils.sh
+source /usr/local/lib/pg-utils.sh
+
+install_postgresql() {
+  log "PostgreSQL not found, installing..."
+
+  apt-get update -y
+  apt-get install -y curl ca-certificates gnupg lsb-release
+
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgsql.list
+
+  apt-get update -y
+
+  apt-get install -y postgresql-${postgres_version} postgresql-client-${postgres_version} postgresql-contrib-${postgres_version}
+  apt-get install -y barman barman-cli barman-cli-cloud jq
+
+  log "PostgreSQL and barman installed successfully"
+}
+
+install_ssm_agent() {
+  if systemctl is-active amazon-ssm-agent >/dev/null 2>&1; then
+    log "SSM agent already running"
+    return 0
+  fi
+  log "Installing AWS SSM agent"
+  local arch
+  arch="$(dpkg --print-architecture)"
+  local pkg_url
+  case "$arch" in
+    amd64) pkg_url="https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb" ;;
+    arm64) pkg_url="https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_arm64/amazon-ssm-agent.deb" ;;
+    *) log "Unknown arch $arch — skipping SSM agent install"; return 0 ;;
+  esac
+  curl -fsSL "$pkg_url" -o /tmp/amazon-ssm-agent.deb
+  dpkg -i /tmp/amazon-ssm-agent.deb
+  rm -f /tmp/amazon-ssm-agent.deb
+  systemctl enable amazon-ssm-agent
+  systemctl start amazon-ssm-agent
+  log "SSM agent installed and started"
+}
+
+check_postgresql_installed() {
+  if command -v psql >/dev/null 2>&1; then
+    return 0
+  fi
+  if compgen -G "/usr/lib/postgresql/*/bin/psql" >/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+if ! check_postgresql_installed; then
+  install_postgresql
+else
+  log "PostgreSQL is already installed"
+fi
+
+install_ssm_agent
+
+if systemctl is-active postgresql >/dev/null 2>&1; then
+  systemctl stop postgresql || true
+fi
 
 DATA_VOLUME="${data_volume_device}"
 MOUNT_POINT="/mnt/postgresql"
@@ -87,33 +153,87 @@ fi
 REQUESTED_DATA_VOLUME="$DATA_VOLUME"
 DATA_VOLUME="$(resolve_data_volume "$REQUESTED_DATA_VOLUME" || true)"
 
-if [ -n "$DATA_VOLUME" ] && [ -b "$DATA_VOLUME" ]; then
-    log "Using data volume $DATA_VOLUME"
-    if ! blkid "$DATA_VOLUME" >/dev/null 2>&1; then
-        mkfs -t ext4 "$DATA_VOLUME"
-    fi
+cat > /usr/local/bin/mount-postgresql-data.sh <<'MOUNT_SCRIPT'
+#!/bin/bash
+set -e
+source /usr/local/lib/pg-utils.sh
 
-    mkdir -p "$MOUNT_POINT"
+MOUNT_POINT="/mnt/postgresql"
+REQUESTED_DATA_VOLUME="$1"
+DATA_VOLUME="$(resolve_data_volume "$REQUESTED_DATA_VOLUME" || true)"
 
-    if ! mountpoint -q "$MOUNT_POINT"; then
-        mount "$DATA_VOLUME" "$MOUNT_POINT"
-    fi
+if [ -z "$DATA_VOLUME" ] || [ ! -b "$DATA_VOLUME" ]; then
+  echo "Data volume not found"
+  exit 1
+fi
 
-    if ! grep -q "^$DATA_VOLUME $MOUNT_POINT ext4 defaults,nofail 0 2$" /etc/fstab; then
-        echo "$DATA_VOLUME $MOUNT_POINT ext4 defaults,nofail 0 2" >> /etc/fstab
-    fi
+echo "Using data volume $DATA_VOLUME"
 
-    mkdir -p "$PGDATA_DIR"
-    chown postgres:postgres "$MOUNT_POINT"
-    chown -R postgres:postgres "$PGDATA_DIR"
-    chmod 700 "$PGDATA_DIR"
+if ! blkid "$DATA_VOLUME" >/dev/null 2>&1; then
+  mkfs -t ext4 "$DATA_VOLUME"
+fi
+
+mkdir -p "$MOUNT_POINT"
+
+if ! mountpoint -q "$MOUNT_POINT"; then
+  mount "$DATA_VOLUME" "$MOUNT_POINT"
+fi
+
+FSTAB_SOURCE="$(blkid -s UUID -o value "$DATA_VOLUME" 2>/dev/null || true)"
+if [ -n "$FSTAB_SOURCE" ]; then
+  FSTAB_SOURCE="UUID=$FSTAB_SOURCE"
 else
-    log "Data volume $REQUESTED_DATA_VOLUME not found, using default location"
-    PGDATA_DIR="/var/lib/pgsql/data"
-    mkdir -p "$PGDATA_DIR"
-    chown postgres:postgres /var/lib/pgsql
-    chown -R postgres:postgres "$PGDATA_DIR"
-    chmod 700 "$PGDATA_DIR"
+  FSTAB_SOURCE="$DATA_VOLUME"
+fi
+
+if ! grep -qF "$MOUNT_POINT" /etc/fstab; then
+  echo "$FSTAB_SOURCE $MOUNT_POINT ext4 defaults,nofail 0 2" >> /etc/fstab
+fi
+
+mkdir -p "$MOUNT_POINT/data"
+chown postgres:postgres "$MOUNT_POINT"
+chown -R postgres:postgres "$MOUNT_POINT/data"
+chmod 700 "$MOUNT_POINT/data"
+
+echo "Mount complete"
+MOUNT_SCRIPT
+
+chmod +x /usr/local/bin/mount-postgresql-data.sh
+
+cat > /etc/systemd/system/postgresql-data-mount.service <<EOF
+[Unit]
+Description=Mount PostgreSQL data volume
+Before=postgresql.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ConditionPathIsMountPoint=!/mnt/postgresql
+ExecStart=/usr/local/bin/mount-postgresql-data.sh $REQUESTED_DATA_VOLUME
+EOF
+
+systemctl daemon-reload
+systemctl enable postgresql-data-mount.service
+
+log "Starting postgresql-data-mount.service..."
+if systemctl start postgresql-data-mount.service; then
+  log "Data volume mount service completed"
+else
+  log "Data volume mount service failed or timed out"
+fi
+
+if mountpoint -q "$MOUNT_POINT"; then
+  PGDATA_DIR="$MOUNT_POINT/data"
+  chown postgres:postgres "$MOUNT_POINT"
+  chown -R postgres:postgres "$PGDATA_DIR"
+  chmod 700 "$PGDATA_DIR"
+else
+  log "Data volume $REQUESTED_DATA_VOLUME not found or not mounted, using default location"
+  PGDATA_DIR="/var/lib/pgsql/data"
+  mkdir -p "$PGDATA_DIR"
+  chown postgres:postgres /var/lib/pgsql
+  chown -R postgres:postgres "$PGDATA_DIR"
+  chmod 700 "$PGDATA_DIR"
 fi
 
 validate_pgdata_dir "$PGDATA_DIR"
@@ -126,50 +246,73 @@ chown -R postgres:postgres "$PGDATA_DIR"
 chmod 700 "$PGDATA_DIR"
 
 mkdir -p "/etc/systemd/system/postgresql.service.d"
+
+UNIT_SECTION=""
+if [ "$PGDATA_DIR" = "$MOUNT_POINT/data" ]; then
+    UNIT_SECTION="[Unit]
+After=postgresql-data-mount.service
+Requires=postgresql-data-mount.service
+"
+fi
+
 cat > "/etc/systemd/system/postgresql.service.d/override.conf" <<EOF
+$UNIT_SECTION
 [Service]
 Environment=PGDATA=$PGDATA_DIR
 EOF
 systemctl daemon-reload
 
-PGCONF_FILE="$PGDATA_DIR/postgresql.conf"
+PGCONF_FILE="/etc/postgresql/${postgres_version}/main/postgresql.conf"
+PG_HBA_SYSTEM_FILE="/etc/postgresql/${postgres_version}/main/pg_hba.conf"
 
-mkdir -p /etc/pgbackrest
-cat > /etc/pgbackrest/pgbackrest.conf <<EOF
-[global]
-repo1-type=s3
-repo1-s3-bucket=${database_backup_bucket_name}
-repo1-s3-endpoint=${database_backup_bucket_endpoint}
-repo1-s3-key=${database_backup_bucket_access_key_id}
-repo1-s3-key-secret=${database_backup_bucket_access_key}
-repo1-cipher-pass=${pgbackrest_cipher_pass}
-repo1-retention-diff=7
-repo1-retention-full=7
+BARMAN_SERVER_NAME="${environment}-postgresql-primary"
+BARMAN_DESTINATION="s3://${database_backup_bucket_name}/postgresql"
+BARMAN_COMMON_OPTS="--cloud-provider aws-s3 --endpoint-url ${database_backup_bucket_endpoint}"
 
-[db]
-db-path=$PGDATA_DIR
-db-port=5432
-db-user=postgres
-EOF
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+export AWS_ACCESS_KEY_ID="${database_backup_bucket_access_key_id}"
+export AWS_SECRET_ACCESS_KEY="${database_backup_bucket_access_key}"
 
 RESTORE_BACKUP_VAL="false"
 if [ -z "$(ls -A $PGDATA_DIR 2>/dev/null)" ]; then
-    log "Data directory is empty, checking for backups..."
-    if pgbackrest info 2>/dev/null | grep -q "backup"; then
+    log "Data directory is empty, checking for barman backups..."
+    LATEST_BACKUP_ID="$(sudo -u postgres \
+      AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
+      AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
+      AWS_ACCESS_KEY_ID="${database_backup_bucket_access_key_id}" \
+      AWS_SECRET_ACCESS_KEY="${database_backup_bucket_access_key}" \
+      barman-cloud-backup-list $BARMAN_COMMON_OPTS --format json "$BARMAN_DESTINATION" "$BARMAN_SERVER_NAME" 2>/dev/null \
+      | jq -r '.backups_list | sort_by(.end_time) | last | .backup_id // empty')"
+    if [ -n "$LATEST_BACKUP_ID" ]; then
         RESTORE_BACKUP_VAL="true"
     fi
 fi
 
 if [ "$RESTORE_BACKUP_VAL" = "true" ]; then
-    log "Restoring from pgbackrest backup..."
+    log "Restoring from barman backup..."
     chown -R postgres:postgres "$PGDATA_DIR"
     chmod 700 "$PGDATA_DIR"
-    
-    su - postgres -c "pgbackrest restore --type=latest --force"
+
+    systemctl stop postgresql 2>/dev/null || true
+
+    sudo -u postgres \
+      AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
+      AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
+      AWS_ACCESS_KEY_ID="${database_backup_bucket_access_key_id}" \
+      AWS_SECRET_ACCESS_KEY="${database_backup_bucket_access_key}" \
+      barman-cloud-restore $BARMAN_COMMON_OPTS "$BARMAN_DESTINATION" "$BARMAN_SERVER_NAME" "$LATEST_BACKUP_ID" "$PGDATA_DIR"
     log "Backup restored successfully"
 else
     log "Initializing new PostgreSQL data directory..."
-    su - postgres -c "initdb -D '$PGDATA_DIR'"
+    PG_INITDB=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1)
+
+    if [ -n "$PG_INITDB" ]; then
+        su - postgres -c "$PG_INITDB -D '$PGDATA_DIR'"
+    else
+        pg_createcluster ${postgres_version} main -- -D "$PGDATA_DIR" || true
+    fi
+
     chown -R postgres:postgres "$PGDATA_DIR"
     chmod 700 "$PGDATA_DIR"
 fi
@@ -180,11 +323,13 @@ echo "max_wal_senders = 3" >> "$PGCONF_FILE"
 echo "max_replication_slots = 3" >> "$PGCONF_FILE"
 echo "wal_level = replica" >> "$PGCONF_FILE"
 echo "hot_standby = on" >> "$PGCONF_FILE"
+echo "archive_mode = on" >> "$PGCONF_FILE"
+echo "archive_command = 'AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required AWS_ACCESS_KEY_ID=${database_backup_bucket_access_key_id} AWS_SECRET_ACCESS_KEY=${database_backup_bucket_access_key} barman-cloud-wal-archive --cloud-provider aws-s3 --endpoint-url ${database_backup_bucket_endpoint} s3://${database_backup_bucket_name}/postgresql ${environment}-postgresql-primary %p'" >> "$PGCONF_FILE"
+echo "archive_timeout = 300" >> "$PGCONF_FILE"
 
-PG_HBA_FILE="$PGDATA_DIR/pg_hba.conf"
-echo "host     all             all             10.0.0.0/16           trust" >> $PG_HBA_FILE
-echo "host     replication     replicator      10.0.0.0/16           md5" >> $PG_HBA_FILE
-echo "host     replication     replicator      127.0.0.1/32          md5" >> $PG_HBA_FILE
+echo "host     all             all             10.0.0.0/16           trust" >> $PG_HBA_SYSTEM_FILE
+echo "host     replication     replicator      10.0.0.0/16           md5" >> $PG_HBA_SYSTEM_FILE
+echo "host     replication     replicator      127.0.0.1/32          md5" >> $PG_HBA_SYSTEM_FILE
 ${peer_vpc_cidrs_hba}
 
 systemctl enable postgresql
@@ -224,6 +369,29 @@ if [ "$RESTORE_BACKUP_VAL" = "true" ]; then
 else
     su - postgres -c "psql -c \"CREATE DATABASE ${db_name};\" 2>/dev/null || true"
     su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD '${db_password}';\""
-su - postgres -c "psql -c \"CREATE USER replicator WITH REPLICATION PASSWORD '${db_password}';\" 2>/dev/null || true"
+    su - postgres -c "psql -c \"CREATE USER ${db_user} WITH LOGIN PASSWORD '${db_password}';\" 2>/dev/null || true"
+    su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE ${db_name} TO ${db_user};\""
+    su - postgres -c "psql -d ${db_name} -c \"GRANT ALL ON SCHEMA public TO ${db_user};\""
+    su - postgres -c "psql -c \"CREATE USER replicator WITH REPLICATION PASSWORD '${db_password}';\" 2>/dev/null || true"
     log "PostgreSQL primary setup complete"
 fi
+
+if [ "$RESTORE_BACKUP_VAL" = "false" ]; then
+    log "Creating initial barman backup..."
+    sudo -u postgres \
+      AWS_REQUEST_CHECKSUM_CALCULATION=when_required \
+      AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
+      AWS_ACCESS_KEY_ID="${database_backup_bucket_access_key_id}" \
+      AWS_SECRET_ACCESS_KEY="${database_backup_bucket_access_key}" \
+      barman-cloud-backup $BARMAN_COMMON_OPTS "$BARMAN_DESTINATION" "$BARMAN_SERVER_NAME" || log "Initial backup failed"
+fi
+
+BARMAN_ENV="AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required AWS_ACCESS_KEY_ID=${database_backup_bucket_access_key_id} AWS_SECRET_ACCESS_KEY=${database_backup_bucket_access_key}"
+BARMAN_BACKUP_CMD="$BARMAN_ENV barman-cloud-backup $BARMAN_COMMON_OPTS $BARMAN_DESTINATION $BARMAN_SERVER_NAME"
+BARMAN_CLEANUP_CMD="$BARMAN_ENV barman-cloud-backup-delete $BARMAN_COMMON_OPTS --retention-policy 'RECOVERY WINDOW OF 15 DAYS' $BARMAN_DESTINATION $BARMAN_SERVER_NAME"
+cat > /etc/cron.d/barman-backup <<CRON
+0 2 * * * postgres $BARMAN_BACKUP_CMD >> /var/log/barman-backup.log 2>&1
+30 2 * * * postgres $BARMAN_CLEANUP_CMD >> /var/log/barman-backup.log 2>&1
+CRON
+chmod 644 /etc/cron.d/barman-backup
+log "Nightly barman backup + 15-day retention cleanup cron configured (02:00/02:30 UTC)"

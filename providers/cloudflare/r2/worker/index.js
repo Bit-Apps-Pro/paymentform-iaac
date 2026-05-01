@@ -1,66 +1,68 @@
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const path = url.pathname.slice(1);
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request, event.env, event));
+});
 
-    if (request.method === 'OPTIONS') {
-      return handleCorsPreflight(request, env);
-    }
+async function handleRequest(request, env, ctx) {
+  const url = new URL(request.url);
+  const path = url.pathname.slice(1);
 
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return new Response('Method not allowed', { 
-        status: 405,
-        headers: getCorsHeaders(request, env)
-      });
-    }
+  if (request.method === 'OPTIONS') {
+    return handleCorsPreflight(request, env);
+  }
 
-    if (!isPublicPath(path)) {
-      return new Response('Not found', { 
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: getCorsHeaders(request, env)
+    });
+  }
+
+  if (!isPublicPath(path)) {
+    return new Response('Not found', {
+      status: 404,
+      headers: getCorsHeaders(request, env)
+    });
+  }
+
+  try {
+    const object = await env.R2_BUCKET.get(path);
+
+    if (!object) {
+      return new Response('File not found', {
         status: 404,
         headers: getCorsHeaders(request, env)
       });
     }
 
-    try {
-      const object = await env.R2_BUCKET.get(path);
+    const headers = new Headers({
+      ...getCorsHeaders(request, env),
+      'Content-Type': object.httpMetadata?.contentType || getContentType(path),
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'ETag': object.httpEtag,
+      'Last-Modified': object.uploaded.toUTCString(),
+    });
 
-      if (!object) {
-        return new Response('File not found', { 
-          status: 404,
-          headers: getCorsHeaders(request, env)
-        });
-      }
-
-      const headers = new Headers({
-        ...getCorsHeaders(request, env),
-        'Content-Type': object.httpMetadata?.contentType || getContentType(path),
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'ETag': object.httpEtag,
-        'Last-Modified': object.uploaded.toUTCString(),
-      });
-
-      if (object.size) {
-        headers.set('Content-Length', object.size.toString());
-      }
-
-      if (request.headers.has('Range')) {
-        return await handleRangeRequest(request, object, headers);
-      }
-
-      return new Response(object.body, {
-        status: 200,
-        headers,
-      });
-
-    } catch (error) {
-      console.error('Error fetching from R2:', error);
-      return new Response('Internal server error', { 
-        status: 500,
-        headers: getCorsHeaders(request, env)
-      });
+    if (object.size) {
+      headers.set('Content-Length', object.size.toString());
     }
-  },
-};
+
+    if (request.headers.has('Range')) {
+      return await handleRangeRequest(request, object, headers);
+    }
+
+    return new Response(object.body, {
+      status: 200,
+      headers,
+    });
+
+  } catch (error) {
+    console.error('Error fetching from R2:', error);
+    return new Response('Internal server error', {
+      status: 500,
+      headers: getCorsHeaders(request, env)
+    });
+  }
+}
 
 function handleCorsPreflight(request, env) {
   const headers = getCorsHeaders(request, env);

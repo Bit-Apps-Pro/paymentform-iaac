@@ -32,6 +32,12 @@ variable "ssh_public_key" {
   default = ""
 }
 
+variable "ssh_key_id" {
+  description = "Hetzner SSH key ID to attach to server. Takes precedence over ssh_public_key."
+  type        = string
+  default     = ""
+}
+
 variable "volume_size_gb" {
   description = "Data volume size in GB"
   type        = number
@@ -59,6 +65,18 @@ variable "allowed_cidrs" {
   description = "CIDRs allowed to connect to Postgres port 5432"
   type        = list(string)
   default     = ["0.0.0.0/0", "::/0"]
+}
+
+variable "admin_cidr_blocks" {
+  description = "CIDR blocks allowed for SSH access (admin IPs only)"
+  type        = list(string)
+  default     = []
+}
+
+variable "backend_private_cidrs" {
+  description = "Private CIDRs of backend servers allowed to connect to Postgres"
+  type        = list(string)
+  default     = []
 }
 
 variable "network_id" {

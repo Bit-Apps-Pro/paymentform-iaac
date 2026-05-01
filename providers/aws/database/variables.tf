@@ -105,7 +105,6 @@ variable "db_password" {
 variable "database_backup_bucket_endpoint" {
   description = "R2/S3 endpoint for pgbackrest backups"
   type        = string
-  default     = "https://paymentform-backups.r2.cloudflarestorage.com"
 }
 
 variable "database_backup_bucket_name" {

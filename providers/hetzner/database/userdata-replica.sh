@@ -89,10 +89,24 @@ if [ "$NEED_BASEBACKUP" = "true" ]; then
   chmod 700 "$PGDATA_DIR"
 
   log "Starting base backup from ${primary_host}:${primary_port}"
-  runuser -u postgres -- env PGPASSFILE="$PGPASS_FILE" \
-    pg_basebackup -D "$PGDATA_DIR" \
-    -d "host=${primary_host} port=${primary_port} user=replicator dbname=replication passfile=$${PGPASS_FILE}" \
-    -v -P -w -R
+  BASEBACKUP_ATTEMPTS=0
+  BASEBACKUP_MAX=10
+  until runuser -u postgres -- env PGPASSFILE="$PGPASS_FILE" \
+      pg_basebackup -D "$PGDATA_DIR" \
+      -d "host=${primary_host} port=${primary_port} user=replicator dbname=replication passfile=$${PGPASS_FILE}" \
+      -v -P -w -R; do
+    BASEBACKUP_ATTEMPTS=$((BASEBACKUP_ATTEMPTS + 1))
+    if [ "$BASEBACKUP_ATTEMPTS" -ge "$BASEBACKUP_MAX" ]; then
+      log "pg_basebackup failed after $BASEBACKUP_MAX attempts — aborting"
+      exit 1
+    fi
+    log "pg_basebackup attempt $BASEBACKUP_ATTEMPTS failed, retrying in 30s (tunnel may not be ready)..."
+    rm -rf "$${PGDATA_DIR:?}"
+    mkdir -p "$PGDATA_DIR"
+    chown -R postgres:postgres "$PGDATA_DIR"
+    chmod 700 "$PGDATA_DIR"
+    sleep 30
+  done
 fi
 
 PGCONF_FILE="$PGDATA_DIR/postgresql.conf"

@@ -109,14 +109,14 @@ resource "aws_instance" "postgresql_primary" {
     }
   )
 
-  user_data = base64encode(templatefile("${path.module}/userdata-primary.sh", {
+  user_data = base64gzip(templatefile("${path.module}/userdata-primary.sh", {
     environment                          = var.environment
     postgres_version                     = var.postgres_version
     db_name                              = var.db_name
     db_user                              = var.db_user
     db_password                          = var.db_password
-    database_backup_bucket_name          = var.database_backup_bucket_endpoint
-    database_backup_bucket_endpoint      = var.database_backup_bucket_name
+    database_backup_bucket_name          = var.database_backup_bucket_name
+    database_backup_bucket_endpoint      = var.database_backup_bucket_endpoint
     database_backup_bucket_access_key_id = var.database_backup_bucket_access_key_id
     database_backup_bucket_access_key    = var.database_backup_bucket_access_key
     pgbackrest_cipher_pass               = var.pgbackrest_cipher_pass
@@ -158,7 +158,7 @@ resource "aws_instance" "postgresql_replica" {
     }
   )
 
-  user_data = base64encode(templatefile("${path.module}/userdata-replica.sh", {
+  user_data = base64gzip(templatefile("${path.module}/userdata-replica.sh", {
     environment        = var.environment
     postgres_version   = var.postgres_version
     primary_ip         = aws_instance.postgresql_primary.private_ip
@@ -259,7 +259,7 @@ resource "aws_instance" "postgresql_cross_region_replica" {
     }
   )
 
-  user_data = base64encode(templatefile("${path.module}/userdata-replica.sh", {
+  user_data = base64gzip(templatefile("${path.module}/userdata-replica.sh", {
     environment        = var.environment
     postgres_version   = var.postgres_version
     primary_ip         = aws_instance.postgresql_primary.private_ip

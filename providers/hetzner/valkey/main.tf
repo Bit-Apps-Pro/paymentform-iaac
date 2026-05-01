@@ -223,10 +223,12 @@ resource "hcloud_firewall" "valkey" {
   name = "${var.server_name}-${var.environment}-valkey-fw"
 
   rule {
-    direction  = "in"
-    protocol   = "udp"
-    port       = tostring(local.wg_listen_port)
-    source_ips = local.wg_peer_public_ips
+    description     = "Allow WireGuard peers"
+    direction       = "in"
+    protocol        = "udp"
+    port            = tostring(local.wg_listen_port)
+    source_ips      = sort(distinct(local.wg_peer_public_ips))
+    destination_ips = []
   }
 
   labels = {

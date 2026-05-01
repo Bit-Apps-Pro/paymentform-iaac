@@ -22,23 +22,31 @@ locals {
   app_target      = var.app_container_endpoint != "" ? var.app_container_endpoint : (length(var.app_origin_ips) > 0 ? var.app_origin_ips[0] : "127.0.0.1")
   api_target      = length(var.api_origin_ips) > 0 ? var.api_origin_ips[0] : (length(var.api_cname) > 0 ? var.api_cname : "127.0.0.1")
   renderer_target = var.renderer_container_endpoint != "" ? var.renderer_container_endpoint : var.renderer_origin_ip
+  regional_api_records = {
+    for region, endpoint in var.region_endpoints : region => {
+      hostname = lookup(var.region_hostnames, region, "")
+      endpoint = endpoint
+      type     = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$", endpoint)) ? "A" : "CNAME"
+    }
+    if lookup(var.region_hostnames, region, "") != ""
+  }
 }
 
 resource "cloudflare_dns_record" "api_region" {
-  for_each = var.enable_geo_routing ? var.region_endpoints : tomap({})
+  for_each = var.enable_geo_routing ? local.regional_api_records : tomap({})
 
   zone_id = var.cloudflare_zone_id
-  name    = var.api_subdomain
-  content = each.value
-  type    = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$", each.value)) ? "A" : "CNAME"
+  name    = each.value.hostname
+  content = each.value.endpoint
+  type    = each.value.type
   proxied = true
   ttl     = 1
-  comment = "API endpoint - ${each.key} region"
+  comment = "Regional API endpoint - ${each.key}"
 }
 
-# Default API record (when not using geo-routing)
+# Default API record
 resource "cloudflare_dns_record" "api" {
-  count   = var.enable_geo_routing ? 0 : 1
+  count   = 1
   zone_id = var.cloudflare_zone_id
   name    = var.api_subdomain
   content = local.api_target

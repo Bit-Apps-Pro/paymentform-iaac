@@ -204,6 +204,10 @@ resource "aws_security_group" "valkey" {
       Name = "${var.environment}-valkey-security-group"
     }
   )
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Inbound rules for Valkey - allow from ECS and within itself for cluster

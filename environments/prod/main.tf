@@ -46,7 +46,7 @@ provider "hcloud" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  resource_prefix = "paymentform-p-us"
+  resource_prefix = "paymentform-prod"
   region          = "us-east-1"
 
   standard_tags = {
@@ -55,6 +55,8 @@ locals {
     Project     = "paymentform"
     ManagedBy   = "opentofu"
   }
+
+  hetzner_ssh_key_id = try(data.hcloud_ssh_key.existing[0].id, try(hcloud_ssh_key.shared[0].id, ""))
 }
 
 resource "aws_ssm_parameter" "ghcr_token" {
@@ -172,7 +174,7 @@ module "postgres_database" {
   db_user          = var.db_username
   db_password      = var.db_password
 
-  database_backup_bucket_endpoint      = "https://${var.backup_storage_bucket_name}.r2.cloudflarestorage.com"
+  database_backup_bucket_endpoint      = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
   database_backup_bucket_name          = var.backup_storage_bucket_name
   database_backup_bucket_access_key_id = var.backup_storage_access_key_id
   database_backup_bucket_access_key    = var.backup_storage_access_key
@@ -241,7 +243,7 @@ module "paymentform_backend" {
   ecs_cluster_name           = "${local.resource_prefix}-cluster"
   ecs_security_group_id      = module.paymentform_security.ecs_security_group_id
   region                     = local.region
-  bucket_name                = module.paymentform_storage_application.bucket_names["us"]
+  # bucket_name                = module.paymentform_storage_application.bucket_names["us"]
   service_type               = "backend"
   ghcr_username              = var.ghcr_username
   container_image            = var.backend_container_image
@@ -294,7 +296,7 @@ module "paymentform_backend" {
 
     BROADCAST_CONNECTION = "reverb"
     FILESYSTEM_DISK      = "local"
-    QUEUE_CONNECTION     = "sqs"
+    QUEUE_CONNECTION     = "database"
     CACHE_STORE          = "redis"
 
     REVERB_APP_ID          = "1"
@@ -304,15 +306,6 @@ module "paymentform_backend" {
     REVERB_PORT            = "8080"
     REVERB_SCHEME          = "http"
     REVERB_SCALING_ENABLED = "false"
-
-    SQS_QUEUE_CONNECTION = "default"
-    SQS_PREFIX           = "https://sqs.${local.region}.amazonaws.com/${data.aws_caller_identity.current.account_id}"
-    SQS_SUFFIX           = ""
-
-    REDIS_CLIENT   = "phpredis"
-    REDIS_HOST     = "10.1.0.10"
-    REDIS_PORT     = 6379
-    REDIS_PASSWORD = var.redis_password
 
     MAIL_MAILER       = "smtp"
     MAIL_HOST         = var.mail_host
@@ -325,13 +318,16 @@ module "paymentform_backend" {
     AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.paymentform_storage_application.bucket_names["us"]
-    AWS_BUCKET_US               = module.paymentform_storage_application.bucket_names["us"]
-    AWS_BUCKET_EU               = module.paymentform_storage_application.bucket_names["eu"]
-    AWS_BUCKET_AP               = module.paymentform_storage_application.bucket_names["ap"]
-    AWS_USE_PATH_STYLE_ENDPOINT = true
+    AWS_BUCKET                  = "paymentform-uploads-us"
+    AWS_BUCKET_EU               = "paymentform-uploads-eu"
+    AWS_BUCKET_AP               = "paymentform-uploads-ap"
+    AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_ACCESS_KEY_ID_EU        = var.upload_storage_access_key_id_eu
+    AWS_SECRET_ACCESS_KEY_EU    = var.upload_storage_secret_access_key_eu
+    AWS_ACCESS_KEY_ID_AP        = var.upload_storage_access_key_id_ap
+    AWS_SECRET_ACCESS_KEY_AP    = var.upload_storage_secret_access_key_ap
 
     CORS_ALLOWED_ORIGINS = "https://app.paymentform.io"
     CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
@@ -360,6 +356,22 @@ module "paymentform_backend" {
     SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
     SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
+
+    OTEL_SDK_DISABLED="true"
+    OTEL_SERVICE_NAME="PaymentForm"
+    OTEL_TRACES_EXPORTER="otlp"
+    OTEL_METRICS_EXPORTER="otlp"
+    OTEL_LOGS_EXPORTER="otlp"
+    OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318"
+    OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+
+    ALERT_EMAIL_ENABLED=false
+    ALERT_SLACK_ENABLED=false
+    ALERT_SLACK_CHANNEL="#alerts"
+    ALERT_WEBHOOK_ENABLED=false
+    ALERT_SLACK_WEBHOOK_URL=""
+    ALERT_WEBHOOK_URL=""
+    ALERT_WEBHOOK_SECRET=""
   }
 }
 
@@ -390,7 +402,6 @@ module "paymentform_renderer" {
   ecs_cluster_name           = "${local.resource_prefix}-cluster"
   ecs_security_group_id      = module.paymentform_security.ecs_security_group_id
   region                     = local.region
-  bucket_name                = module.paymentform_storage_application.bucket_names["us"]
   service_type               = "renderer"
   ghcr_username              = var.ghcr_username
   container_image            = var.renderer_container_image
@@ -444,10 +455,16 @@ module "paymentform_storage_cdn" {
   cloudflare_api_token  = var.cloudflare_api_token
   cloudflare_zone_id    = var.cloudflare_zone_id
 
-  worker_enabled       = false
-  regional_buckets     = module.paymentform_storage_application.bucket_names
+  worker_enabled   = true
+  regional_buckets = {
+    for region in keys(module.paymentform_storage_application.bucket_names) : region => {
+      bucket_name  = module.paymentform_storage_application.bucket_names[region]
+      jurisdiction = module.paymentform_storage_application.bucket_jurisdictions[region]
+    }
+  }
   domain_prefix        = "cdn"
   base_domain          = "paymentform.io"
+  regional_domains     = { us = "cdn.paymentform.io", ap = "cdn-ap.paymentform.io" }
   cors_allowed_origins = ["https://app.paymentform.io"]
 }
 
@@ -476,7 +493,7 @@ module "paymentform_nlb_backend" {
   service_label              = "bknd"
   vpc_id                     = module.paymentform_networking.vpc_id
   subnet_ids                 = module.paymentform_networking.public_subnet_ids
-  enable_deletion_protection = true
+  enable_deletion_protection = false
   standard_tags              = local.standard_tags
   alert_webhook_url          = var.alert_webhook_url
 }
@@ -490,7 +507,7 @@ module "paymentform_nlb_renderer" {
   service_label              = "rndr"
   vpc_id                     = module.paymentform_networking.vpc_id
   subnet_ids                 = module.paymentform_networking.public_subnet_ids
-  enable_deletion_protection = true
+  enable_deletion_protection = false
   standard_tags              = local.standard_tags
   alert_webhook_url          = var.alert_webhook_url
 }
@@ -533,6 +550,17 @@ module "paymentform_client" {
 # =============================================================================
 # Hetzner Networks (private networking per zone)
 # =============================================================================
+data "hcloud_ssh_key" "existing" {
+  count = var.hetzner_ssh_key_name != "" ? 1 : 0
+  name  = var.hetzner_ssh_key_name
+}
+
+resource "hcloud_ssh_key" "shared" {
+  count      = var.hetzner_ssh_key_name == "" && var.hetzner_ssh_public_key != "" ? 1 : 0
+  name       = "${local.resource_prefix}-shared-key"
+  public_key = var.hetzner_ssh_public_key
+}
+
 module "hetzner_network_eu" {
   source = "../../providers/hetzner/network"
 
@@ -561,19 +589,38 @@ module "hetzner_network_ap" {
 module "hetzner_backend_hel1" {
   source = "../../providers/hetzner/server"
 
-  environment     = "prod"
-  resource_prefix = "paymentform-p-eu"
-  region          = "eu-hel1"
-  location        = "hel1"
-  server_type     = var.hetzner_server_type
-  server_image    = "ubuntu-24.04"
-  ssh_public_key  = var.hetzner_ssh_public_key
-  ghcr_username   = var.ghcr_username
-  ghcr_token      = var.ghcr_token
-  container_image = var.backend_container_image
-  service_type    = "backend"
-  valkey_password = var.redis_password
-  network_id      = tostring(module.hetzner_network_eu.network_id)
+  environment       = "prod"
+  resource_prefix   = "paymentform-p-eu"
+  region            = "eu-hel1"
+  location          = "hel1"
+  server_type       = "ccx13"
+  server_image      = "ubuntu-24.04"
+  ssh_key_id        = local.hetzner_ssh_key_id
+  admin_cidr_blocks = var.admin_cidr_blocks
+  ghcr_username     = var.ghcr_username
+  ghcr_token        = var.ghcr_token
+  container_image   = var.backend_container_image
+  service_type      = "backend"
+  valkey_password   = var.redis_password
+  network_id        = tostring(module.hetzner_network_eu.network_id)
+
+  renderer_container_image = var.renderer_container_image
+  renderer_container_env_vars = {
+    SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
+    SSL_STORAGE_BUCKET_HOST          = module.paymentform_storage_ssl_config.bucket_domain
+    SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
+    SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
+    API_URL                          = "https://api.paymentform.io"
+    DOMAIN                           = "paymentform.io"
+    KV_STORE_BASE_URL                = "https://tenant-validator-prod.bitapps.workers.dev"
+    ACME_EMAIL                       = "hello@paymentform.io"
+    KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
+    KV_STORE_API_TOKEN               = var.kv_store_api_token
+    STRIPE_KEY                       = var.stripe_public_key
+    RESERVED_SUBDOMAINS              = "www,admin,api,app,dev,test"
+    NODE_ENV                         = "production"
+  }
 
   container_env_vars = {
     APP_NAME          = "Payment Form"
@@ -649,13 +696,16 @@ module "hetzner_backend_hel1" {
     AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.paymentform_storage_application.bucket_names["us"]
-    AWS_BUCKET_US               = module.paymentform_storage_application.bucket_names["us"]
-    AWS_BUCKET_EU               = module.paymentform_storage_application.bucket_names["eu"]
-    AWS_BUCKET_AP               = module.paymentform_storage_application.bucket_names["ap"]
+    AWS_BUCKET                  = "paymentform-uploads-us"
+    AWS_BUCKET_EU               = "paymentform-uploads-eu"
+    AWS_BUCKET_AP               = "paymentform-uploads-ap"
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_ACCESS_KEY_ID_EU        = var.upload_storage_access_key_id_eu
+    AWS_SECRET_ACCESS_KEY_EU    = var.upload_storage_secret_access_key_eu
+    AWS_ACCESS_KEY_ID_AP        = var.upload_storage_access_key_id_ap
+    AWS_SECRET_ACCESS_KEY_AP    = var.upload_storage_secret_access_key_ap
 
     CORS_ALLOWED_ORIGINS = "https://app.paymentform.io"
     CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
@@ -703,39 +753,57 @@ module "hetzner_backend_hel1" {
 module "hetzner_db_hel1" {
   source = "../../providers/hetzner/database"
 
-  environment     = "prod"
-  resource_prefix = "paymentform-p-eu"
-  region          = "eu-hel1"
-  location        = "hel1"
-  server_type     = var.hetzner_db_server_type
-  server_image    = "ubuntu-24.04"
-  ssh_public_key  = var.hetzner_ssh_public_key
-  volume_size_gb  = 30
-  primary_host    = module.tunnel_db.tunnel_cname
-  db_password     = var.db_password
-  network_id      = tostring(module.hetzner_network_eu.network_id)
-  standard_tags   = local.standard_tags
+  environment         = "prod"
+  resource_prefix     = "paymentform-p-eu"
+  region              = "eu-hel1"
+  location            = "hel1"
+  server_type         = "cpx22"
+  server_image        = "ubuntu-24.04"
+  ssh_key_id          = local.hetzner_ssh_key_id
+  admin_cidr_blocks   = var.admin_cidr_blocks
+  backend_private_cidrs = ["${module.hetzner_backend_hel1.private_ipv4_address}/32"]
+  volume_size_gb      = 30
+  primary_host        = module.tunnel_db.tunnel_cname
+  db_password         = var.db_password
+  network_id          = tostring(module.hetzner_network_eu.network_id)
+  standard_tags       = local.standard_tags
 }
 
-# =============================================================================
-# Hetzner — Asia (SIN1 Singapore)
-# =============================================================================
 module "hetzner_backend_sin1" {
   source = "../../providers/hetzner/server"
 
-  environment     = "prod"
-  resource_prefix = "paymentform-p-sg"
-  region          = "ap-sin1"
-  location        = "sin1"
-  server_type     = var.hetzner_server_type
-  server_image    = "ubuntu-24.04"
-  ssh_public_key  = var.hetzner_ssh_public_key
-  ghcr_username   = var.ghcr_username
-  ghcr_token      = var.ghcr_token
-  container_image = var.backend_container_image
-  service_type    = "backend"
-  valkey_password = var.redis_password
-  network_id      = tostring(module.hetzner_network_ap.network_id)
+  environment       = "prod"
+  resource_prefix   = "paymentform-p-sg"
+  region            = "ap-sin1"
+  location          = "sin"
+  server_type       = "cpx22"
+  server_image      = "ubuntu-24.04"
+  ssh_key_id        = local.hetzner_ssh_key_id
+  admin_cidr_blocks = var.admin_cidr_blocks
+  ghcr_username     = var.ghcr_username
+  ghcr_token        = var.ghcr_token
+  container_image   = var.backend_container_image
+  service_type      = "backend"
+  valkey_password   = var.redis_password
+  network_id        = tostring(module.hetzner_network_ap.network_id)
+
+  renderer_container_image = var.renderer_container_image
+  renderer_container_env_vars = {
+    SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
+    SSL_STORAGE_BUCKET_HOST          = module.paymentform_storage_ssl_config.bucket_domain
+    SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
+    SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
+    CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
+    API_URL                          = "https://api.paymentform.io"
+    DOMAIN                           = "paymentform.io"
+    KV_STORE_BASE_URL                = "https://tenant-validator-prod.bitapps.workers.dev"
+    ACME_EMAIL                       = "hello@paymentform.io"
+    KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
+    KV_STORE_API_TOKEN               = var.kv_store_api_token
+    STRIPE_KEY                       = var.stripe_public_key
+    RESERVED_SUBDOMAINS              = "www,admin,api,app,dev,test"
+    NODE_ENV                         = "production"
+  }
 
   container_env_vars = {
     APP_NAME          = "Payment Form"
@@ -794,12 +862,7 @@ module "hetzner_backend_sin1" {
 
     SQS_QUEUE_CONNECTION = "sqs"
     SQS_PREFIX           = "paymentform"
-    SQS_SUFFIX          = "default"
-
-    REDIS_CLIENT   = "phpredis"
-    REDIS_HOST     = "10.1.0.10"
-    REDIS_PORT     = "6379"
-    REDIS_PASSWORD = var.redis_password
+    SQS_SUFFIX           = "default"
 
     MAIL_MAILER       = "smtp"
     MAIL_HOST         = var.mail_host
@@ -812,13 +875,16 @@ module "hetzner_backend_sin1" {
     AWS_ACCESS_KEY_ID           = var.upload_storage_access_key_id
     AWS_SECRET_ACCESS_KEY       = var.upload_storage_secret_access_key
     AWS_DEFAULT_REGION          = local.region
-    AWS_BUCKET                  = module.paymentform_storage_application.bucket_names["us"]
-    AWS_BUCKET_US               = module.paymentform_storage_application.bucket_names["us"]
-    AWS_BUCKET_EU               = module.paymentform_storage_application.bucket_names["eu"]
-    AWS_BUCKET_AP               = module.paymentform_storage_application.bucket_names["ap"]
+    AWS_BUCKET                  = "paymentform-uploads-us"
+    AWS_BUCKET_EU               = "paymentform-uploads-eu"
+    AWS_BUCKET_AP               = "paymentform-uploads-ap"
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_ACCESS_KEY_ID_EU        = var.upload_storage_access_key_id_eu
+    AWS_SECRET_ACCESS_KEY_EU    = var.upload_storage_secret_access_key_eu
+    AWS_ACCESS_KEY_ID_AP        = var.upload_storage_access_key_id_ap
+    AWS_SECRET_ACCESS_KEY_AP    = var.upload_storage_secret_access_key_ap
 
     CORS_ALLOWED_ORIGINS = "https://app.paymentform.io"
     CORS_ALLOWED_METHODS = "POST, GET, OPTIONS, PUT, DELETE"
@@ -854,18 +920,20 @@ module "hetzner_backend_sin1" {
 module "hetzner_db_sin1" {
   source = "../../providers/hetzner/database"
 
-  environment     = "prod"
-  resource_prefix = "paymentform-p-sg"
-  region          = "ap-sin1"
-  location        = "sin1"
-  server_type     = var.hetzner_db_server_type
-  server_image    = "ubuntu-24.04"
-  ssh_public_key  = var.hetzner_ssh_public_key
-  volume_size_gb  = 30
-  primary_host    = module.tunnel_db.tunnel_cname
-  db_password     = var.db_password
-  network_id      = tostring(module.hetzner_network_ap.network_id)
-  standard_tags   = local.standard_tags
+  environment           = "prod"
+  resource_prefix       = "paymentform-p-sg"
+  region                = "ap-sin1"
+  location              = "sin"
+  server_type           = "cpx12"
+  server_image          = "ubuntu-24.04"
+  ssh_key_id            = local.hetzner_ssh_key_id
+  admin_cidr_blocks     = var.admin_cidr_blocks
+  backend_private_cidrs = ["${module.hetzner_backend_sin1.private_ipv4_address}/32"]
+  volume_size_gb        = 30
+  primary_host          = module.tunnel_db.tunnel_cname
+  db_password           = var.db_password
+  network_id            = tostring(module.hetzner_network_ap.network_id)
+  standard_tags         = local.standard_tags
 }
 
 module "paymenform_dns" {
@@ -890,9 +958,12 @@ module "paymenform_dns" {
 
   enable_geo_routing = true
   region_endpoints = {
-    us = module.paymentform_nlb_backend.nlb_dns_name
     eu = module.hetzner_backend_hel1.ipv4_address
     sg = module.hetzner_backend_sin1.ipv4_address
+  }
+  region_hostnames = {
+    eu = "api-eu.paymentform.io"
+    sg = "api-sg.paymentform.io"
   }
 
   cloudflare_plan      = "free"
