@@ -27,14 +27,15 @@ resource "aws_launch_template" "compute" {
   }
 
   user_data = base64encode(templatefile("${path.module}/userdata.sh", {
-    environment        = var.environment
-    ghcr_username      = var.ghcr_username
-    region             = var.region
-    service_type       = var.service_type
-    container_env_vars = join("\n", [for k, v in var.container_env_vars : "${k}='${v}'" if v != null])
-    IMAGE              = var.container_image
-    auto_ssl           = var.auto_ssl
-    tunnel_token       = var.tunnel_token
+    environment          = var.environment
+    ghcr_username        = var.ghcr_username
+    region               = var.region
+    service_type         = var.service_type
+    container_env_vars   = join("\n", [for k, v in var.container_env_vars : "${k}='${v}'" if v != null])
+    IMAGE                = var.container_image
+    auto_ssl             = var.auto_ssl
+    tunnel_token         = var.tunnel_token
+    deploy_script_content = var.deploy_script_content
   }))
 
   key_name      = var.key_pair_name
@@ -49,7 +50,8 @@ resource "aws_launch_template" "compute" {
     tags = merge(
       var.standard_tags,
       {
-        Name = "${local.prefix}-compute-instance"
+        Name    = "${local.prefix}-compute-instance"
+        Service = var.service_type
       }
     )
   }
@@ -106,6 +108,7 @@ resource "aws_autoscaling_group" "compute" {
     for_each = var.spot_instance_percentage > 0 ? [1] : []
     content {
       instances_distribution {
+        on_demand_base_capacity                  = var.on_demand_base_capacity
         on_demand_percentage_above_base_capacity = 100 - var.spot_instance_percentage
         spot_allocation_strategy                 = "capacity-optimized"
       }

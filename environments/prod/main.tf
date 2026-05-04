@@ -162,13 +162,13 @@ module "postgres_database" {
   subnet_ids        = module.paymentform_networking.public_subnet_ids
   security_group_id = module.paymentform_security.postgresql_security_group_id
 
-  primary_instance_type = "t4g.small"
+  primary_instance_type = "t4g.medium"
   replica_instance_type = "t4g.micro"
   primary_volume_size   = 20
   replica_volume_size   = 20
   volume_type           = "gp3"
 
-  enable_replica   = true
+  enable_replica   = false
   postgres_version = "17"
   db_name          = var.db_database
   db_user          = var.db_username
@@ -251,8 +251,9 @@ module "paymentform_backend" {
     module.paymentform_nlb_backend.https_target_group_arn,
     module.paymentform_nlb_backend.http_target_group_arn,
   ]
+  deploy_script_content = file("${path.module}/../../../backend/.github/scripts/deploy-ec2.sh")
 
-  container_env_vars = {
+  container_env_vars = merge({
     APP_NAME          = "Payment Form"
     APP_ENV           = "production"
     APP_URL           = "https://api.paymentform.io"
@@ -275,8 +276,6 @@ module "paymentform_backend" {
 
     DB_CONNECTION = "pgsql"
     DB_HOST       = module.postgres_database.primary_endpoint
-    DB_HOST_WRITE = module.postgres_database.primary_endpoint
-    DB_HOST_READ  = module.postgres_database.replica_endpoint
     DB_PORT       = 5432
     DB_DATABASE   = var.db_database
     DB_USERNAME   = var.db_username
@@ -323,7 +322,11 @@ module "paymentform_backend" {
     AWS_BUCKET_AP               = "paymentform-uploads-ap"
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_ENDPOINT_EU             = "https://${var.cloudflare_account_id}.eu.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_CDN_URL                 = "https://cdn-us.paymentform.io"
+    AWS_CDN_URL_EU              = "https://cdn-eu.paymentform.io"
+    AWS_CDN_URL_AP              = "https://cdn-ap.paymentform.io"
     AWS_ACCESS_KEY_ID_EU        = var.upload_storage_access_key_id_eu
     AWS_SECRET_ACCESS_KEY_EU    = var.upload_storage_secret_access_key_eu
     AWS_ACCESS_KEY_ID_AP        = var.upload_storage_access_key_id_ap
@@ -356,6 +359,8 @@ module "paymentform_backend" {
     SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
     SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
+    OCTANE_HTTPS                     = "true"
+    CADDY_LOG_LEVEL                  = "debug"
 
     OTEL_SDK_DISABLED="true"
     OTEL_SERVICE_NAME="PaymentForm"
@@ -372,7 +377,10 @@ module "paymentform_backend" {
     ALERT_SLACK_WEBHOOK_URL=""
     ALERT_WEBHOOK_URL=""
     ALERT_WEBHOOK_SECRET=""
-  }
+  }, module.postgres_database.replica_endpoint != null ? {
+    DB_HOST_WRITE = module.postgres_database.primary_endpoint
+    DB_HOST_READ  = module.postgres_database.replica_endpoint
+  } : {})
 }
 
 module "paymentform_renderer" {
@@ -409,6 +417,10 @@ module "paymentform_renderer" {
     module.paymentform_nlb_renderer.https_target_group_arn,
     module.paymentform_nlb_renderer.http_target_group_arn,
   ]
+  deploy_script_content = file("${path.module}/../../../renderer/.github/scripts/deploy-ec2.sh")
+
+  spot_instance_percentage = 75
+  on_demand_base_capacity  = 1
 
   container_env_vars = {
     SSL_STORAGE_BUCKET_NAME          = module.paymentform_storage_ssl_config.bucket_name
@@ -418,7 +430,7 @@ module "paymentform_renderer" {
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
     API_URL                          = "https://api.paymentform.io"
     DOMAIN                           = "paymentform.io"
-    KV_STORE_BASE_URL                = "https://tenant-validator-prod.bitapps.workers.dev"
+    KV_STORE_BASE_URL                = "https://paymentform-tenant-validator-prod.bitapps.workers.dev"
     ACME_EMAIL                       = "hello@paymentform.io"
     KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
     KV_STORE_API_TOKEN               = var.kv_store_api_token
@@ -464,14 +476,14 @@ module "paymentform_storage_cdn" {
   }
   domain_prefix        = "cdn"
   base_domain          = "paymentform.io"
-  regional_domains     = { us = "cdn.paymentform.io", ap = "cdn-ap.paymentform.io" }
+  regional_domains     = { us = "cdn-us.paymentform.io", ap = "cdn-ap.paymentform.io" }
   cors_allowed_origins = ["https://app.paymentform.io"]
 }
 
 module "paymentform_kv_store" {
   source = "../../providers/cloudflare/kv"
 
-  environment           = "paymenform"
+  environment           = "prod"
   resource_prefix       = local.resource_prefix
   standard_tags         = local.standard_tags
   cloudflare_account_id = var.cloudflare_account_id
@@ -596,6 +608,7 @@ module "hetzner_backend_hel1" {
   server_type       = "ccx13"
   server_image      = "ubuntu-24.04"
   ssh_key_id        = local.hetzner_ssh_key_id
+  os_user_public_key = var.hetzner_ssh_public_key
   admin_cidr_blocks = var.admin_cidr_blocks
   ghcr_username     = var.ghcr_username
   ghcr_token        = var.ghcr_token
@@ -613,16 +626,18 @@ module "hetzner_backend_hel1" {
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
     API_URL                          = "https://api.paymentform.io"
     DOMAIN                           = "paymentform.io"
-    KV_STORE_BASE_URL                = "https://tenant-validator-prod.bitapps.workers.dev"
+    KV_STORE_BASE_URL                = "https://paymentform-tenant-validator-prod.bitapps.workers.dev"
     ACME_EMAIL                       = "hello@paymentform.io"
     KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
-    KV_STORE_API_TOKEN               = var.kv_store_api_token
+KV_STORE_API_TOKEN               = var.kv_store_api_token
     STRIPE_KEY                       = var.stripe_public_key
     RESERVED_SUBDOMAINS              = "www,admin,api,app,dev,test"
     NODE_ENV                         = "production"
   }
 
-  container_env_vars = {
+  deploy_script_content = file("${path.module}/../../../backend/.github/scripts/deploy-hetzner.sh")
+
+  container_env_vars = merge({
     APP_NAME          = "Payment Form"
     APP_ENV           = "production"
     APP_URL           = "https://api.paymentform.io"
@@ -640,13 +655,11 @@ module "hetzner_backend_hel1" {
 
     LOG_CHANNEL              = "stack"
     LOG_STACK                = "single"
-    LOG_DEPRECATIONS_CHANNEL = ""
+    LOG_DEPRECICATIONS_CHANNEL = ""
     LOG_LEVEL                = "error"
 
     DB_CONNECTION = "pgsql"
-    DB_HOST       = module.hetzner_db_hel1.replica_endpoint
-    DB_HOST_WRITE = module.postgres_database.primary_endpoint
-    DB_HOST_READ  = module.hetzner_db_hel1.replica_endpoint
+    DB_HOST       = module.hetzner_db_hel1.enabled ? module.hetzner_db_hel1.replica_endpoint : module.postgres_database.primary_endpoint
     DB_PORT       = "5432"
     DB_DATABASE   = var.db_database
     DB_USERNAME   = var.db_username
@@ -701,7 +714,11 @@ module "hetzner_backend_hel1" {
     AWS_BUCKET_AP               = "paymentform-uploads-ap"
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_ENDPOINT_EU             = "https://${var.cloudflare_account_id}.eu.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_CDN_URL             = "https://cdn-us.paymentform.io"
+    AWS_CDN_URL_EU              = "https://cdn-eu.paymentform.io"
+    AWS_CDN_URL_AP              = "https://cdn-ap.paymentform.io"
     AWS_ACCESS_KEY_ID_EU        = var.upload_storage_access_key_id_eu
     AWS_SECRET_ACCESS_KEY_EU    = var.upload_storage_secret_access_key_eu
     AWS_ACCESS_KEY_ID_AP        = var.upload_storage_access_key_id_ap
@@ -745,7 +762,12 @@ module "hetzner_backend_hel1" {
     SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
     SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
-  }
+    OCTANE_HTTPS                     = "true"
+    CADDY_LOG_LEVEL                  = "debug"
+  }, module.hetzner_db_hel1.enabled ? {
+    DB_HOST_WRITE = module.postgres_database.primary_endpoint
+    DB_HOST_READ  = module.hetzner_db_hel1.replica_endpoint
+  } : {})
 
   standard_tags = local.standard_tags
 }
@@ -760,6 +782,7 @@ module "hetzner_db_hel1" {
   server_type         = "cpx22"
   server_image        = "ubuntu-24.04"
   ssh_key_id          = local.hetzner_ssh_key_id
+  os_user_public_key  = var.hetzner_ssh_public_key
   admin_cidr_blocks   = var.admin_cidr_blocks
   backend_private_cidrs = ["${module.hetzner_backend_hel1.private_ipv4_address}/32"]
   volume_size_gb      = 30
@@ -767,6 +790,7 @@ module "hetzner_db_hel1" {
   db_password         = var.db_password
   network_id          = tostring(module.hetzner_network_eu.network_id)
   standard_tags       = local.standard_tags
+  enabled             = false
 }
 
 module "hetzner_backend_sin1" {
@@ -778,14 +802,15 @@ module "hetzner_backend_sin1" {
   location          = "sin"
   server_type       = "cpx22"
   server_image      = "ubuntu-24.04"
-  ssh_key_id        = local.hetzner_ssh_key_id
-  admin_cidr_blocks = var.admin_cidr_blocks
-  ghcr_username     = var.ghcr_username
-  ghcr_token        = var.ghcr_token
-  container_image   = var.backend_container_image
-  service_type      = "backend"
-  valkey_password   = var.redis_password
-  network_id        = tostring(module.hetzner_network_ap.network_id)
+  ssh_key_id         = local.hetzner_ssh_key_id
+  os_user_public_key = var.hetzner_ssh_public_key
+  admin_cidr_blocks  = var.admin_cidr_blocks
+  ghcr_username      = var.ghcr_username
+  ghcr_token         = var.ghcr_token
+  container_image    = var.backend_container_image
+  service_type       = "backend"
+  valkey_password    = var.redis_password
+  network_id         = tostring(module.hetzner_network_ap.network_id)
 
   renderer_container_image = var.renderer_container_image
   renderer_container_env_vars = {
@@ -796,7 +821,7 @@ module "hetzner_backend_sin1" {
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
     API_URL                          = "https://api.paymentform.io"
     DOMAIN                           = "paymentform.io"
-    KV_STORE_BASE_URL                = "https://tenant-validator-prod.bitapps.workers.dev"
+    KV_STORE_BASE_URL                = "https://paymentform-tenant-validator-prod.bitapps.workers.dev"
     ACME_EMAIL                       = "hello@paymentform.io"
     KV_STORE_NAMESPACE_ID            = module.paymentform_kv_store.namespace_id
     KV_STORE_API_TOKEN               = var.kv_store_api_token
@@ -805,7 +830,9 @@ module "hetzner_backend_sin1" {
     NODE_ENV                         = "production"
   }
 
-  container_env_vars = {
+  deploy_script_content = file("${path.module}/../../../backend/.github/scripts/deploy-hetzner.sh")
+
+  container_env_vars = merge({
     APP_NAME          = "Payment Form"
     APP_ENV           = "production"
     APP_URL           = "https://api.paymentform.io"
@@ -823,13 +850,11 @@ module "hetzner_backend_sin1" {
 
     LOG_CHANNEL              = "stack"
     LOG_STACK                = "single"
-    LOG_DEPRECATIONS_CHANNEL = ""
+    LOG_DEPRECICATIONS_CHANNEL = ""
     LOG_LEVEL                = "error"
 
     DB_CONNECTION = "pgsql"
-    DB_HOST       = module.hetzner_db_sin1.replica_endpoint
-    DB_HOST_WRITE = module.postgres_database.primary_endpoint
-    DB_HOST_READ  = module.hetzner_db_sin1.replica_endpoint
+    DB_HOST       = module.hetzner_db_sin1.enabled ? module.hetzner_db_sin1.replica_endpoint : module.postgres_database.primary_endpoint
     DB_PORT       = "5432"
     DB_DATABASE   = var.db_database
     DB_USERNAME   = var.db_username
@@ -880,7 +905,11 @@ module "hetzner_backend_sin1" {
     AWS_BUCKET_AP               = "paymentform-uploads-ap"
     AWS_USE_PATH_STYLE_ENDPOINT = "true"
     AWS_ENDPOINT                = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_ENDPOINT_EU             = "https://${var.cloudflare_account_id}.eu.r2.cloudflarestorage.com"
     AWS_CLOUDFRONT_URL          = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+    AWS_CDN_URL                 = "https://cdn-us.paymentform.io"
+    AWS_CDN_URL_EU              = "https://cdn-eu.paymentform.io"
+    AWS_CDN_URL_AP              = "https://cdn-ap.paymentform.io"
     AWS_ACCESS_KEY_ID_EU        = var.upload_storage_access_key_id_eu
     AWS_SECRET_ACCESS_KEY_EU    = var.upload_storage_secret_access_key_eu
     AWS_ACCESS_KEY_ID_AP        = var.upload_storage_access_key_id_ap
@@ -912,7 +941,12 @@ module "hetzner_backend_sin1" {
     SSL_STORAGE_BUCKET_ACCESS_KEY_ID = var.ssl_storage_access_key_id
     SSL_STORAGE_BUCKET_ACCESS_KEY    = var.ssl_storage_secret_access_key
     CLOUDFLARE_API_TOKEN             = var.cloudflare_api_token_wildcard_dns
-  }
+    OCTANE_HTTPS                     = "true"
+    CADDY_LOG_LEVEL                  = "debug"
+  }, module.hetzner_db_sin1.enabled ? {
+    DB_HOST_WRITE = module.postgres_database.primary_endpoint
+    DB_HOST_READ  = module.hetzner_db_sin1.replica_endpoint
+  } : {})
 
   standard_tags = local.standard_tags
 }
@@ -927,6 +961,7 @@ module "hetzner_db_sin1" {
   server_type           = "cpx12"
   server_image          = "ubuntu-24.04"
   ssh_key_id            = local.hetzner_ssh_key_id
+  os_user_public_key    = var.hetzner_ssh_public_key
   admin_cidr_blocks     = var.admin_cidr_blocks
   backend_private_cidrs = ["${module.hetzner_backend_sin1.private_ipv4_address}/32"]
   volume_size_gb        = 30
@@ -934,6 +969,7 @@ module "hetzner_db_sin1" {
   db_password           = var.db_password
   network_id            = tostring(module.hetzner_network_ap.network_id)
   standard_tags         = local.standard_tags
+  enabled               = false
 }
 
 module "paymenform_dns" {

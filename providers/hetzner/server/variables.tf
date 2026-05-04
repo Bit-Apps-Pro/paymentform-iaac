@@ -39,6 +39,18 @@ variable "ssh_key_id" {
   default     = ""
 }
 
+variable "os_username" {
+  description = "OS username to create on the server for SSH access (e.g. deploy, admin)"
+  type        = string
+  default     = "deploy"
+}
+
+variable "os_user_public_key" {
+  description = "SSH public key to add to the OS user's authorized_keys. Empty string skips user creation."
+  type        = string
+  default     = ""
+}
+
 variable "ghcr_username" {
   type = string
 }
@@ -126,4 +138,10 @@ variable "renderer_container_env_vars" {
   description = "Environment variables for renderer container"
   type        = map(string)
   default     = {}
+}
+
+variable "deploy_script_content" {
+  description = "Content of the deploy script to execute on Hetzner instances"
+  type        = string
+  default     = ""
 }

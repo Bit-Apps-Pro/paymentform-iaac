@@ -28,7 +28,7 @@ resource "hcloud_server" "backend" {
   location    = var.location
   ssh_keys    = var.ssh_key_id != "" ? [var.ssh_key_id] : (var.ssh_public_key != "" ? [hcloud_ssh_key.main[0].id] : [])
 
-  user_data = templatefile("${path.module}/userdata.sh", {
+user_data = templatefile("${path.module}/userdata.sh", {
     ghcr_username               = var.ghcr_username
     ghcr_token                  = var.ghcr_token
     container_image             = var.container_image
@@ -38,6 +38,9 @@ resource "hcloud_server" "backend" {
     valkey_memory_max           = var.valkey_memory_max
     renderer_container_image    = var.renderer_container_image
     renderer_container_env_vars = var.renderer_container_env_vars
+    os_username                 = var.os_username
+    os_user_public_key          = var.os_user_public_key
+    deploy_script_content       = var.deploy_script_content
   })
 
   labels = merge(var.standard_tags, {

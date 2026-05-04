@@ -30,7 +30,8 @@ resource "cloudflare_workers_script" "cdn_worker" {
   account_id         = var.cloudflare_account_id
   script_name        = each.value.name
   content            = file("${path.module}/../worker/index.js")
-  compatibility_date = "2024-01-01"
+  compatibility_date = "2025-05-01"
+  main_module        = "index.js"
 
   bindings = [
     {
@@ -52,10 +53,11 @@ resource "cloudflare_workers_script" "cdn_worker" {
   ]
 }
 
-resource "cloudflare_workers_route" "cdn_route" {
+resource "cloudflare_workers_custom_domain" "cdn_domain" {
   for_each = var.worker_enabled && nonsensitive(var.cloudflare_zone_id) != "" ? local.worker_configs : {}
 
-  zone_id = var.cloudflare_zone_id
-  pattern = each.value.pattern
-  script  = cloudflare_workers_script.cdn_worker[each.key].script_name
+  account_id = var.cloudflare_account_id
+  zone_id    = var.cloudflare_zone_id
+  hostname   = replace(each.value.pattern, "/*", "")
+  service    = cloudflare_workers_script.cdn_worker[each.key].script_name
 }

@@ -12,6 +12,27 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y docker.io curl
 
+%{ if os_user_public_key != "" ~}
+log "Creating OS user: ${os_username}"
+id "${os_username}" &>/dev/null || useradd -m -s /bin/bash "${os_username}"
+
+for grp in docker sudo; do
+  if getent group "$grp" >/dev/null 2>&1; then
+    usermod -aG "$grp" "${os_username}"
+  fi
+done
+
+mkdir -p /home/${os_username}/.ssh
+chmod 700 /home/${os_username}/.ssh
+cat > /home/${os_username}/.ssh/authorized_keys <<'SSHEOF'
+${os_user_public_key}
+SSHEOF
+chmod 600 /home/${os_username}/.ssh/authorized_keys
+chown -R ${os_username}:${os_username} /home/${os_username}/.ssh
+
+log "OS user ${os_username} created with SSH key"
+%{ endif ~}
+
 systemctl enable docker
 systemctl start docker
 
@@ -63,79 +84,13 @@ log:
   level: ERROR
 TRAEOF
 
-log "Writing docker-compose.yml"
-cat > /opt/docker-compose.yml <<'COMPOSEOF'
-version: "3.8"
+log "Writing deploy script"
+cat > /usr/local/bin/deploy-hetzner.sh << 'DEPLOYEOF'
+${deploy_script_content}
+DEPLOYEOF
+chmod +x /usr/local/bin/deploy-hetzner.sh
 
-services:
-  traefik:
-    image: traefik:v3.0
-    restart: unless-stopped
-    networks:
-      - traefik-public
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /opt/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+log "Executing deploy script"
+/usr/local/bin/deploy-hetzner.sh
 
-  valkey:
-    image: valkey/valkey:latest
-    restart: unless-stopped
-    networks:
-      - traefik-public
-    command: >
-      valkey-server
-      --requirepass "${valkey_password}"
-      --maxmemory "${valkey_memory_max}"
-      --maxmemory-policy allkeys-lru
-      --bind 0.0.0.0
-
-  backend:
-    image: ${container_image}
-    restart: unless-stopped
-    networks:
-      - traefik-public
-    env_file:
-      - /etc/container.env
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend-http.rule=Host(\`api.paymentform.io\`)"
-      - "traefik.http.routers.backend-http.entrypoints=web"
-      - "traefik.http.services.backend-http.loadbalancer.server.port=80"
-      - "traefik.tcp.routers.backend-tcp.rule=HostSNI(\`api.paymentform.io\`)"
-      - "traefik.tcp.routers.backend-tcp.entrypoints=websecure"
-      - "traefik.tcp.routers.backend-tcp.tls.passthrough=true"
-      - "traefik.tcp.services.backend-tcp.loadbalancer.server.port=443"
-
-%{ if renderer_container_image != "" ~}
-  renderer:
-    image: ${renderer_container_image}
-    restart: unless-stopped
-    networks:
-      - traefik-public
-    env_file:
-      - /etc/renderer.env
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.renderer-http.rule=HostRegexp(\`{host:.+}\`) && !Host(\`api.paymentform.io\`)"
-      - "traefik.http.routers.renderer-http.entrypoints=web"
-      - "traefik.http.services.renderer-http.loadbalancer.server.port=80"
-      - "traefik.http.routers.renderer-http.priority=1"
-      - "traefik.tcp.routers.renderer-tcp.rule=HostSNI(\`*\`) && !HostSNI(\`api.paymentform.io\`)"
-      - "traefik.tcp.routers.renderer-tcp.entrypoints=websecure"
-      - "traefik.tcp.routers.renderer-tcp.tls.passthrough=true"
-      - "traefik.tcp.services.renderer-tcp.loadbalancer.server.port=443"
-      - "traefik.tcp.routers.renderer-tcp.priority=1"
-%{ endif ~}
-
-networks:
-  traefik-public:
-    external: true
-COMPOSEOF
-
-log "Starting services"
-cd /opt && docker-compose up -d
-
-log "Hetzner Traefik setup complete"
+log "Hetzner server setup complete"

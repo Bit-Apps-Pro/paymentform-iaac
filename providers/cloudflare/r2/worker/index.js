@@ -1,6 +1,8 @@
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request, event.env, event));
-});
+export default {
+  async fetch(request, env, ctx) {
+    return handleRequest(request, env, ctx);
+  }
+};
 
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
@@ -66,7 +68,7 @@ async function handleRequest(request, env, ctx) {
 
 function handleCorsPreflight(request, env) {
   const headers = getCorsHeaders(request, env);
-  
+
   return new Response(null, {
     status: 204,
     headers: {
@@ -80,13 +82,13 @@ function handleCorsPreflight(request, env) {
 
 function isPublicPath(path) {
   const parts = path.split('/');
-  return parts.length >= 4 && parts[2] === 'public' && parts[3] !== '';
+  return parts.length >= 4 && parts[1] === 'public';
 }
 
 function getCorsHeaders(request, env) {
   const origin = request.headers.get('Origin');
   const allowedOrigins = env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',') : ['*'];
-  
+
   const headers = {
     'Access-Control-Allow-Origin': allowedOrigins.includes('*') ? '*' : (allowedOrigins.includes(origin) ? origin : 'null'),
   };
@@ -133,8 +135,8 @@ async function handleRangeRequest(request, object, headers) {
 
   const matches = range.match(/bytes=(\d+)-(\d*)/);
   if (!matches) {
-    return new Response('Invalid range', { 
-      status: 416, 
+    return new Response('Invalid range', {
+      status: 416,
       headers: { ...headers, 'Content-Range': `bytes */${size}` }
     });
   }
@@ -144,8 +146,8 @@ async function handleRangeRequest(request, object, headers) {
   const clampedEnd = Math.min(end, size - 1);
 
   if (start >= size || start > clampedEnd) {
-    return new Response('Range not satisfiable', { 
-      status: 416, 
+    return new Response('Range not satisfiable', {
+      status: 416,
       headers: { ...headers, 'Content-Range': `bytes */${size}` }
     });
   }
@@ -155,8 +157,8 @@ async function handleRangeRequest(request, object, headers) {
   });
 
   if (!rangedObject) {
-    return new Response('Range not satisfiable', { 
-      status: 416, 
+    return new Response('Range not satisfiable', {
+      status: 416,
       headers: { ...headers, 'Content-Range': `bytes */${size}` }
     });
   }

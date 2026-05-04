@@ -11,6 +11,27 @@ escape_pgpass_field() {
 
 export DEBIAN_FRONTEND=noninteractive
 
+%{ if os_user_public_key != "" ~}
+log "Creating OS user: ${os_username}"
+id "${os_username}" &>/dev/null || useradd -m -s /bin/bash "${os_username}"
+
+for grp in docker sudo; do
+  if getent group "$grp" >/dev/null 2>&1; then
+    usermod -aG "$grp" "${os_username}"
+  fi
+done
+
+mkdir -p /home/${os_username}/.ssh
+chmod 700 /home/${os_username}/.ssh
+cat > /home/${os_username}/.ssh/authorized_keys <<'SSHEOF'
+${os_user_public_key}
+SSHEOF
+chmod 600 /home/${os_username}/.ssh/authorized_keys
+chown -R ${os_username}:${os_username} /home/${os_username}/.ssh
+
+log "OS user ${os_username} created with SSH key"
+%{ endif ~}
+
 log "Installing PostgreSQL 17"
 apt-get update -y
 apt-get install -y curl gnupg lsb-release

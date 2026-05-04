@@ -38,6 +38,18 @@ variable "ssh_key_id" {
   default     = ""
 }
 
+variable "os_username" {
+  description = "OS username to create on the server for SSH access (e.g. deploy, admin)"
+  type        = string
+  default     = "deploy"
+}
+
+variable "os_user_public_key" {
+  description = "SSH public key to add to the OS user's authorized_keys. Empty string skips user creation."
+  type        = string
+  default     = ""
+}
+
 variable "volume_size_gb" {
   description = "Data volume size in GB"
   type        = number
@@ -88,4 +100,10 @@ variable "network_id" {
 variable "standard_tags" {
   type    = map(string)
   default = {}
+}
+
+variable "enabled" {
+  description = "Enable the Hetzner database replica server"
+  type        = bool
+  default     = true
 }

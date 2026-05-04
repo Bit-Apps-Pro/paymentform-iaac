@@ -173,3 +173,15 @@ variable "tunnel_token" {
   default     = ""
   sensitive   = true
 }
+
+variable "on_demand_base_capacity" {
+  description = "Minimum number of on-demand instances to maintain before spot instances are used"
+  type        = number
+  default     = 0
+}
+
+variable "deploy_script_content" {
+  description = "Content of the deploy script to execute on EC2 instances"
+  type        = string
+  default     = ""
+}

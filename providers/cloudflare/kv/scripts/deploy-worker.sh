@@ -12,17 +12,26 @@ if [ -z "$NAMESPACE_ID" ]; then
     exit 0
 fi
 
-if [ ! -f "$WORKER_PATH/wrangler.toml" ]; then
-    echo "ERROR: wrangler.toml not found at $WORKER_PATH"
+WRANGLER_CONFIG=""
+for f in wrangler.toml wrangler.jsonc wrangler.json; do
+    if [ -f "$WORKER_PATH/$f" ]; then
+        WRANGLER_CONFIG="$WORKER_PATH/$f"
+        break
+    fi
+done
+
+if [ -z "$WRANGLER_CONFIG" ]; then
+    echo "ERROR: wrangler.toml / wrangler.jsonc / wrangler.json not found at $WORKER_PATH"
     exit 1
 fi
 
-echo "Updating wrangler.toml with namespace ID: $NAMESPACE_ID"
+echo "Using wrangler config: $WRANGLER_CONFIG"
+echo "Updating with namespace ID: $NAMESPACE_ID"
 
 KV_NAMESPACE_ID=""
 KV_PREVIEW_ID=""
 
-if [ "$ENV" = "prod-us" ]; then
+if [ "$ENV" = "prod-us" ] || [ "$ENV" = "prod" ]; then
     KV_NAMESPACE_ID="$NAMESPACE_ID"
     KV_PREVIEW_ID="$NAMESPACE_ID"
 fi
@@ -35,10 +44,9 @@ if [ -n "$KV_STORE_API_TOKEN" ]; then
 fi
 
 if [ -n "$KV_NAMESPACE_ID" ]; then
-    echo "Updating kv_namespaces in wrangler.toml..."
-    if [ "$ENV" = "prod-us" ]; then
-        sed -i "s|id = \".*\"|id = \"$KV_NAMESPACE_ID\"|" "$WORKER_PATH/wrangler.toml"
-    fi
+    echo "Updating kv_namespaces in wrangler config..."
+    sed -i "s|id = \".*\"|id = \"$KV_NAMESPACE_ID\"|" "$WRANGLER_CONFIG" 2>/dev/null || true
+    sed -i "s|\"id\": \".*\"|\"id\": \"$KV_NAMESPACE_ID\"|" "$WRANGLER_CONFIG" 2>/dev/null || true
 fi
 
 echo "Deploying kv-store worker..."

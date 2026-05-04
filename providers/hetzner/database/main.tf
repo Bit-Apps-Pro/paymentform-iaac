@@ -35,6 +35,7 @@ resource "hcloud_volume" "data" {
 }
 
 resource "hcloud_server" "db_replica" {
+  count       = var.enabled ? 1 : 0
   name        = local.server_name
   server_type = var.server_type
   image       = var.server_image
@@ -42,9 +43,11 @@ resource "hcloud_server" "db_replica" {
   ssh_keys    = var.ssh_key_id != "" ? [var.ssh_key_id] : (var.ssh_public_key != "" ? [hcloud_ssh_key.db[0].id] : [])
 
   user_data = templatefile("${path.module}/userdata-replica.sh", {
-    primary_host  = var.primary_host
-    primary_port  = var.primary_port
-    db_password   = var.db_password
+    primary_host       = var.primary_host
+    primary_port       = var.primary_port
+    db_password        = var.db_password
+    os_username        = var.os_username
+    os_user_public_key = var.os_user_public_key
   })
 
   labels = merge(var.standard_tags, {
@@ -56,14 +59,15 @@ resource "hcloud_server" "db_replica" {
 }
 
 resource "hcloud_volume_attachment" "data" {
+  count     = var.enabled ? 1 : 0
   volume_id = hcloud_volume.data.id
-  server_id = hcloud_server.db_replica.id
+  server_id = hcloud_server.db_replica[0].id
   automount = true
 }
 
 resource "hcloud_server_network" "db_replica" {
-  count      = var.network_id != "" ? 1 : 0
-  server_id  = hcloud_server.db_replica.id
+  count      = var.enabled && var.network_id != "" ? 1 : 0
+  server_id  = hcloud_server.db_replica[0].id
   network_id = tonumber(var.network_id)
 }
 
@@ -92,6 +96,7 @@ resource "hcloud_firewall" "db" {
 }
 
 resource "hcloud_firewall_attachment" "db" {
+  count       = var.enabled ? 1 : 0
   firewall_id = hcloud_firewall.db.id
-  server_ids  = [hcloud_server.db_replica.id]
+  server_ids  = [hcloud_server.db_replica[0].id]
 }

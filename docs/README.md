@@ -13,6 +13,9 @@ Operational documentation for the PaymentForm production infrastructure.
 | [CDN Worker](cdn-worker.md) | Regional CDN workers, R2 bucket binding, domain routing, configuration |
 | [DNS & Routing](dns.md) | Cloudflare DNS records, geo-routing, WAF, rate limiting, cache rules, tunnel |
 | [Client Dashboard](client.md) | Cloudflare Container deployment, image updates, env vars |
+| [Savings Plans Setup](savings-plan-setup.md) | AWS Savings Plans: types, pricing, purchase steps, validation |
+| [Database Replica Setup](database-replica-setup.md) | PostgreSQL streaming replication on any cloud provider |
+| [Database Tunnel & VPN](database-tunnel-vpn.md) | Connect to PostgreSQL from remote regions via tunnel or VPN |
 | [Troubleshooting](troubleshooting.md) | Common issues: EBS mount, PostgreSQL service, barman credentials, worker deployment |
 
 ## Quick Reference
